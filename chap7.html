@@ -5,11 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>第7章 GoによるHTTP/1.1クライアントの実装 (改訂版)</title>
   <meta name="description" content="TCPソケットプログラミングからHTTPクライアントの核心へ">
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Inter Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -56,14 +53,14 @@
       width: 100%;
       height: 100%;
       overflow-y: auto;
-      padding: 2rem 1rem;
+      padding: 0 1rem 2rem 1rem;
     }
     .sticky-header {
         position: -webkit-sticky; /* Safari */
         position: sticky;
         top: 0;
         z-index: 20;
-        padding-top: 1.5rem;
+        padding-top: 2rem;
         padding-bottom: 1.5rem;
         width: 100%;
         background: inherit; /* 親の背景を継承 */
@@ -81,13 +78,10 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
   <div class="relative w-screen h-screen overflow-hidden">
-    <!-- 装飾要素 -->
     <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
     <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
 
-    <!-- スライドコンテナ -->
     <div id="slide-container" class="relative w-full h-full">
-      <!-- スライド1: タイトル -->
       <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
         <div class="text-center relative z-10 p-8">
           <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">GoによるHTTP/1.1クライアントの実装</h1>
@@ -98,19 +92,19 @@
         </div>
       </div>
 
-      <!-- スライド2: TCPソケット通信 -->
       <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="1">
-        <div class="max-w-4xl mx-auto p-4 md:p-8">
-          <div class="mb-10 flex items-center gap-4">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
             <div class="p-3 rounded-full bg-purple-100"><i data-lucide="network" class="w-6 h-6 text-purple-600"></i></div>
             <h2 class="text-4xl font-bold">Step 1: TCPソケット通信</h2>
           </div>
-          <div class="space-y-4">
-            <div class="bg-white/80 p-4 rounded-xl shadow-md">
-                <p class="text-gray-700">HTTP通信の最も基本的な要素は、TCPソケットを介したデータのやり取りです。Go言語の `net` パッケージを使い、サーバーに接続し、確立されたコネクションを通じてリクエストを送信し、レスポンスを受信します。</p>
-            </div>
-            <div class="bg-white/80 p-4 rounded-xl shadow-md">
-                 <div class="code-block"><pre><code>package main
+          <div class="pt-6">
+            <div class="space-y-4">
+              <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                  <p class="text-gray-700">HTTP通信の最も基本的な要素は、TCPソケットを介したデータのやり取りです。Go言語の `net` パッケージを使い、サーバーに接続し、確立されたコネクションを通じてリクエストを送信し、レスポンスを受信します。</p>
+              </div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                   <div class="code-block"><pre><code>package main
 
 import (
 	"bufio"
@@ -134,21 +128,22 @@ func main() {
 		fmt.Println(scanner.Text())
 	}
 }</code></pre></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- スライド3: HTTPリクエスト/レスポンス -->
       <div class="slide bg-gradient-to-br from-pink-50 to-blue-100" data-slide="2">
-        <div class="max-w-5xl mx-auto p-4 md:p-8">
-          <div class="mb-10 flex items-center gap-4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-pink-50 to-blue-100 flex items-center gap-4">
             <div class="p-3 rounded-full bg-blue-100"><i data-lucide="file-text" class="w-6 h-6 text-blue-600"></i></div>
             <h2 class="text-4xl font-bold">Step 2: HTTPリクエストとレスポンスの解析</h2>
           </div>
-          <p class="text-gray-700 mb-4">`net/http`パッケージの`ReadResponse`や`Request.Write`を使うと、手動でテキストを組み立てる代わりに、構造化された方法でリクエスト送信とレスポンス解析が可能です。</p>
-          <div class="bg-white/80 p-6 rounded-xl shadow-lg">
-            <div class="code-block"><pre><code>package main
+          <div class="pt-6">
+            <p class="text-gray-700 mb-4">`net/http`パッケージの`ReadResponse`や`Request.Write`を使うと、手動でテキストを組み立てる代わりに、構造化された方法でリクエスト送信とレスポンス解析が可能です。</p>
+            <div class="bg-white/80 p-6 rounded-xl shadow-lg">
+              <div class="code-block"><pre><code>package main
 
 import (
 	"bufio"
@@ -182,11 +177,11 @@ func main() {
 	body, _ := ioutil.ReadAll(response.Body)
 	fmt.Println(string(body))
 }</code></pre></div>
+            </div>
           </div>
         </div>
       </div>
       
-      <!-- スライド4: Keep-Aliveとチャンク形式の実装 (改訂) -->
       <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="3">
         <div class="scrollable-container max-w-5xl mx-auto">
           <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
@@ -262,7 +257,6 @@ func main() {
         </div>
       </div>
 
-      <!-- スライド5: HTTPSへの対応 (改訂) -->
       <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="4">
         <div class="scrollable-container max-w-5xl mx-auto">
           <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
@@ -333,7 +327,6 @@ client := &http.Client{
         </div>
       </div>
 
-      <!-- スライド6: mTLSの実装 -->
       <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="5">
         <div class="scrollable-container max-w-5xl mx-auto">
           <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
@@ -374,7 +367,6 @@ client := &http.Client{
         </div>
       </div>
       
-      <!-- スライド7: プロトコルアップグレード: サーバー実装 (改訂) -->
       <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="6">
         <div class="scrollable-container max-w-5xl mx-auto">
           <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
@@ -445,7 +437,6 @@ func main() {
         </div>
       </div>
 
-      <!-- スライド8: プロトコルアップグレード: クライアント実装 (改訂) -->
       <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="7">
         <div class="scrollable-container max-w-5xl mx-auto">
           <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
@@ -499,11 +490,11 @@ func main() {
 			if err == io.EOF {
 				break
 			}
-			log.Printf("<- %s", string(bytes.TrimSpace(data)))
+			log.Printf("&lt;- %s", string(bytes.TrimSpace(data)))
 			fmt.Fprintf(conn, "%d\n", counter)
-			log.Printf("-> %d", counter)
+			log.Printf("-&gt; %d", counter)
 			counter--
-			if counter < 0 {
+			if counter &lt; 0 {
 				break
 			}
 		}
@@ -514,7 +505,6 @@ func main() {
         </div>
       </div>
       
-      <!-- スライド9: JSON-RPCの実装 (改訂) -->
       <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="8">
         <div class="scrollable-container max-w-6xl mx-auto">
           <div class="sticky-header bg-gradient-to-br from-blue-50 to-sky-100 flex items-center gap-4">
@@ -594,7 +584,6 @@ func main() {
         </div>
       </div>
 
-      <!-- スライド10: まとめ -->
       <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="9">
         <div class="max-w-4xl mx-auto p-4 md:p-8">
           <div class="mb-10 flex items-center gap-4">
@@ -614,7 +603,6 @@ func main() {
 
     </div>
 
-    <!-- ナビゲーション -->
     <div class="absolute bottom-8 right-8 flex gap-4 z-50">
       <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
         <i data-lucide="chevron-left" class="w-6 h-6"></i>
@@ -624,12 +612,10 @@ func main() {
       </button>
     </div>
 
-    <!-- プログレスバー -->
     <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
       <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
     </div>
 
-    <!-- スライド番号 -->
     <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
       <span id="current-slide">1</span> / <span id="total-slides">10</span>
     </div>
