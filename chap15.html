@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第15章 ウェブのプラットフォーム化</title>
+  <meta name="description" content="ウェブサービスがプラットフォーム化していく歴史と、それを実現する技術（OpenSocial, スーパーアプリ, Electron）について解説">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">第15章 ウェブのプラットフォーム化</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">エコシステムを支える技術</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            1つのウェブサイトが個別のサービスを束ねる「プラットフォーム」へと進化する歴史と、それを実現する技術（OpenSocial, ウェブフック, スーパーアプリ）について解説します。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: OpenSocial (修正版) -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+         <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="users" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">OpenSocial</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <p>GoogleとMySpaceが開発したソーシャルネットワークの共通API。サードパーティがSNSプラットフォーム上でアプリ（ガジェット）を動かすことを可能にしました。</p>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-indigo-700 mb-2">日本での普及 (表15-1)</h3>
+                     <ul class="list-disc list-inside space-y-1 text-sm">
+                        <li><strong>2009年8月:</strong> mixiが「mixiアプリ」を開始</li>
+                        <li><strong>2010年1月:</strong> DeNAが「モバゲーAPI」を開始</li>
+                        <li><strong>2010年6月:</strong> GREEが「GREE Platform」を開始</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm mt-6">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">アーキテクチャ（図15-1）</h3>
+                 <ol class="list-decimal list-inside space-y-2 text-sm">
+                    <li>ユーザーはブラウザでSNS（コンテナ）にアクセスする。</li>
+                    <li>SNSのHTML内に埋め込まれた`iframe`（ガジェット）を通じて、サードパーティのアプリケーションが提供するUIが表示される。</li>
+                    <li>ガジェット内のJavaScriptは、SNSが提供するAPI（友人関係の取得など）と、自社の外部APIの両方を呼び出すことで機能を実現する。</li>
+                </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド3: ウェブフック方式 -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="2">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="webhook" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">ウェブフック方式</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>GitHubやSlack、Discordなどのサービスで広く採用されている拡張方式。ユーザーのアクションなどをきっかけに、ホスト側のサービスがサードパーティアプリケーションの特定のエンドポイント（ウェブフックURL）にHTTPリクエストを送信します。</p>
+                 <p class="mt-2">アプリケーションはそのリクエストを受け取り、ホスト側のAPIを呼び返すなどして、新しい機能を提供します。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド4: スーパーアプリ (修正版) -->
+      <div class="slide bg-gradient-to-br from-sky-50 to-cyan-100" data-slide="3">
+        <div class="scrollable-container max-w-5xl mx-auto">
+            <div class="sticky-header bg-gradient-to-br from-sky-50 to-cyan-100 flex items-center gap-4">
+                <div class="p-3 rounded-full bg-sky-100"><i data-lucide="app-window" class="w-8 h-8 text-sky-600"></i></div>
+                <h2 class="text-4xl font-bold">スーパーアプリとミニアプリ</h2>
+            </div>
+            <div class="pt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-sky-700 mb-2">スーパーアプリ</h3>
+                    <p class="text-sm">WeChatやau PAYなど、単体でプラットフォームとして機能し、内部でサードパーティのアプリケーション（ミニアプリ）を実行できるネイティブアプリ。</p>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-sky-700 mb-2">ミニアプリ</h3>
+                    <p class="text-sm">スーパーアプリ内の**ウェブビュー**で動作するウェブアプリケーション。スーパーアプリが提供する独自のJavaScript API（決済機能、ユーザー情報取得など）を呼び出します。</p>
+                </div>
+                <div class="lg:col-span-2 bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-sky-700 mb-2">ウェブビュー技術の比較</h3>
+                    <p class="text-sm">スーパーアプリは、API追加などのカスタマイズが可能な独自の「ウェブビュー」を実装します。</p>
+                    <p class="text-sm mt-2">一方、iOSの`Safari View Controller`やAndroidの`Chrome Custom Tabs`はカスタマイズを許しませんが、その代わりにブラウザ本体のクッキーやパスワードマネージャーを利用でき、セキュリティが高いという利点があります。</p>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+       <!-- スライド5: Electronによるスーパーアプリ模倣 (1/4) -->
+      <div class="slide bg-gradient-to-br from-teal-50 to-cyan-100" data-slide="4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+            <div class="sticky-header bg-gradient-to-br from-teal-50 to-cyan-100 flex items-center gap-4">
+                <div class="p-3 rounded-full bg-teal-100"><i data-lucide="toy-brick" class="w-8 h-8 text-teal-600"></i></div>
+                <h2 class="text-4xl font-bold">Electronによる模倣 (1/4): 準備</h2>
+            </div>
+            <div class="pt-6 space-y-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <p>デスクトップアプリ開発フレームワークのElectronを使い、ウェブビュー（レンダラープロセス）とホストアプリ（ブラウザプロセス）の関係を体験します。</p>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-teal-700 mb-2">プロジェクトのセットアップ</h3>
+                    <div class="code-block">
+<pre><code>$ mkdir super-app-sample
+$ cd super-app-sample
+$ npm init -y
+$ npm install --save-dev electron</code></pre>
+                    </div>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-teal-700 mb-2">最小構成のコード</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="code-block text-xs">
+<pre><code>// index.js (ホストプロセス)
+const { app, BrowserWindow } = require('electron/main')
+
+function createWindow() {
+  const win = new BrowserWindow({ width: 480, height: 800 })
+  win.loadFile('miniapp.html')
+}
+app.whenReady().then(() => {
+  createWindow()
+  // ... (macOS用コード)
+})
+// ... (ウィンドウクローズ処理)</code></pre>
+                        </div>
+                        <div class="code-block text-xs">
+<pre><code>&lt;!-- miniapp.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;title&gt;Mini App&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;This is MiniApp&lt;/h1&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+                        </div>
+                    </div>
+                </div>
+                 <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-semibold text-teal-700 mb-2">実行方法</h3>
+                    <div class="code-block"><pre><code>$ npx electron .</code></pre></div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <!-- スライド6: Electronによるスーパーアプリ模倣 (2/4) -->
+      <div class="slide bg-gradient-to-br from-teal-50 to-cyan-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-teal-50 to-cyan-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-teal-100"><i data-lucide="toy-brick" class="w-8 h-8 text-teal-600"></i></div>
+            <h2 class="text-4xl font-bold">Electronによる模倣 (2/4): 関数APIの追加</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>プリロードスクリプトを使い、ミニアプリの`window`オブジェクトにホストOSの機能（例: ユーザー名取得）を呼び出すAPIを追加します。</p>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-teal-700 mb-2">index.js (ホスト)</h3>
+                <div class="code-block text-xs">
+<pre><code>// ...
+const { join } = require('node:path')
+const { userInfo } = require('node:os')
+const { ipcMain } = require('electron/main')
+
+// webPreferences.preloadでスクリプトを指定
+const win = new BrowserWindow({ /*...*/ webPreferences: {
+  preload: join(__dirname, 'preload.js')
+}})
+
+// ミニアプリからの呼び出しをハンドル
+ipcMain.handle('getUserName', () => {
+  return userInfo().username
+})</code></pre>
+                </div>
+            </div>
+             <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-teal-700 mb-2">preload.js</h3>
+                <div class="code-block text-xs">
+<pre><code>const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('getUserName', () => {
+  return ipcRenderer.invoke('getUserName')
+})</code></pre>
+                </div>
+            </div>
+             <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-teal-700 mb-2">miniapp.html (クライアント)</h3>
+                <div class="code-block text-xs">
+<pre><code>&lt;body&gt;
+  &lt;h1&gt;This is MiniApp&lt;/h1&gt;
+  &lt;dl&gt;
+    &lt;dt&gt;user name:&lt;/dt&gt;
+    &lt;dd id="user-name"&gt;&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;script&gt;
+    document.addEventListener("DOMContentLoaded", async () => {
+      // プリロードスクリプトで公開したAPIを呼び出す
+      const userName = await window.getUserName()
+      document.querySelector("#user-name").innerHTML = userName
+    });
+  &lt;/script&gt;
+&lt;/body&gt;</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド7: Electronによるスーパーアプリ模倣 (3/4) -->
+      <div class="slide bg-gradient-to-br from-teal-50 to-cyan-100" data-slide="6">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-teal-50 to-cyan-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-teal-100"><i data-lucide="toy-brick" class="w-8 h-8 text-teal-600"></i></div>
+            <h2 class="text-4xl font-bold">Electronによる模倣 (3/4): Fetch形式のAPI</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>独自スキーマ（例: `mainapp://`）へのリクエストをフックし、`fetch` API経由でホストOSの機能を呼び出す方法です。</p>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-teal-700 mb-2">index.js (ホスト)</h3>
+                <div class="code-block text-xs">
+<pre><code>// ...
+const { protocol } = require('electron/main')
+
+// 独自プロトコルを登録
+protocol.registerSchemesAsPrivileged([/*...*/])
+
+app.whenReady().then(() => {
+  protocol.handle("mainapp", (request) => {
+    const method = new URL(request.url).hostname
+    if (method === "get-user-name") {
+      return new Response(JSON.stringify({ userName: userInfo().username }), {
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    return new Response(null, { status: 400 })
+  })
+  createWindow()
+})</code></pre>
+                </div>
+            </div>
+             <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-teal-700 mb-2">miniapp.html (ミニアプリ)</h3>
+                <div class="code-block text-xs">
+<pre><code>// ...
+&lt;script&gt;
+  document.addEventListener("DOMContentLoaded", async () => {
+    // 独自スキーマでAPIを呼び出し
+    const res = await fetch('mainapp://get-user-name')
+    const { userName } = await res.json()
+    document.querySelector("#user-name").innerHTML = userName
+  });
+&lt;/script&gt;</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド8: au PAYの事例 (修正版) -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-blue-100" data-slide="7">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="smartphone-charging" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">事例: au PAYのミニアプリ</h2>
+          </div>
+          <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                  <h3 class="text-lg font-semibold text-blue-700 mb-2">技術的な構成</h3>
+                  <p class="text-sm">ミニアプリは通常のWebサービスとして実装され、au PAYアプリ内のウェブビューから利用されます。API呼び出しには、独自プロトコルをフックする方式が採用されています。</p>
+              </div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                  <h3 class="text-lg font-semibold text-blue-700 mb-2">ビジネス面</h3>
+                  <p class="text-sm">決済とユーザー管理をau PAYが担うことで、ユーザーはサービスごとに情報を登録する必要がなくなり、開発者はそれらの機能を実装する手間が省けます。</p>
+              </div>
+              <div class="md:col-span-2 bg-white/80 p-4 rounded-xl shadow-sm">
+                  <h3 class="text-lg font-semibold text-blue-700 mb-2">運用上の課題と対策</h3>
+                  <ul class="list-disc list-inside space-y-2 text-sm">
+                    <li><strong>初回利用時の同意:</strong> ミニアプリがユーザー情報を利用する場合、初回起動時に同意を求める画面を表示する必要がある。（図15-3）</li>
+                    <li><strong>古いバージョンへの対応:</strong> ミニアプリが必要とするスーパーアプリの最低バージョンを規定し、ユーザーのアプリが古い場合はアップデートを促す仕組みを持つ。</li>
+                  </ul>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド9: プレイアブル広告 (新規追加) -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="8">
+        <div class="scrollable-container max-w-4xl mx-auto">
+            <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+                <div class="p-3 rounded-full bg-rose-100"><i data-lucide="gamepad-2" class="w-8 h-8 text-rose-600"></i></div>
+                <h2 class="text-4xl font-bold">コラム: プレイアブル広告</h2>
+            </div>
+            <div class="pt-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-md mb-6">
+                    <p>ゲーム広告などで見られる、短い体験版をプレイできる広告形式。ウェブビュー内で動作する自己完結型のHTMLファイルとして実装されることが多いです。</p>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-semibold text-rose-700 mb-3">技術的な特徴</h3>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li>画像や音声はDATA URIスキーマでHTMLに埋め込まれる。</li>
+                        <li>外部へのHTTPリクエストは基本的に禁止される。</li>
+                        <li>唯一許可される通信は、ユーザーがクリックした際のアプリストアへの遷移のみ。</li>
+                    </ul>
+                    <p class="mt-4 text-sm text-gray-600">目的は異なりますが、ウェブビュー内で完結するアプリケーションという点で、スーパーアプリの一部の形式と技術的に類似しています。</p>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <!-- スライド10: まとめ -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="9">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="check-circle" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">まとめ</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>OpenSocial:</strong> SNSプラットフォームの草分け。ガジェット（iframe）とAPIで構成される。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>ウェブフック:</strong> サーバー間のHTTP通信で、イベントをきっかけに機能拡張を実現する。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>スーパーアプリ:</strong> カスタマイズされたウェブビューをコンテナとし、ミニアプリを実行するプラットフォーム。</div>
+            </div>
+             <div class="mt-6 bg-white/80 p-6 rounded-xl shadow-md">
+                  <h3 class="text-2xl font-semibold text-indigo-700 mb-3 text-center">結論</h3>
+                  <p class="text-center">ウェブ技術は、単なるドキュメント表示を超え、認証、友人関係、決済といった機能をAPIとして提供し、サービスが相互に連携する「プラットフォーム」へと進化しています。</p>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">10</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            slide.scrollTop = 0; // スライド切り替え時に先頭にスクロール
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft') {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

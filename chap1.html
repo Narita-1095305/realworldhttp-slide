@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第1章 HTTPとブラウザの基本動作 (最終版)</title>
+  <meta name="description" content="ウェブページが表示される仕組みを理解しよう">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      word-wrap: normal;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+            <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">HTTPとブラウザの基本動作</h1>
+            <p class="text-xl md:text-2xl text-gray-700 mt-4">ウェブページが表示される仕組みを理解しよう</p>
+            <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+              このプレゼンテーションは、Web技術の基礎を学ぶ初学者を対象に、HTTPプロトコルとブラウザの基本的な役割について解説します。
+            </p>
+        </div>
+      </div>
+
+      <!-- スライド2: HTTPとは何か -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="server-cog" class="w-6 h-6 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTPとは何か？</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+              <h3 class="text-2xl font-semibold mb-3 text-indigo-700">クライアント・サーバーモデル</h3>
+              <p>Webは、情報を要求する「クライアント」と、情報を提供する「サーバー」の間の通信で成り立っています。HTTPは、この二者間のコミュニケーションルールを定めたプロトコル（通信規約）です。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm flex items-center justify-center">
+                <svg viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                  <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#4f46e5" />
+                    </marker>
+                  </defs>
+                  <!-- Client -->
+                  <g>
+                    <rect x="20" y="50" width="80" height="50" rx="10" ry="10" fill="#c7d2fe"/>
+                    <text x="60" y="80" font-family="Inter, sans-serif" font-size="14" text-anchor="middle" fill="#312e81">クライアント</text>
+                  </g>
+                  <!-- Server -->
+                  <g>
+                    <rect x="200" y="50" width="80" height="50" rx="10" ry="10" fill="#c7d2fe"/>
+                    <text x="240" y="80" font-family="Inter, sans-serif" font-size="14" text-anchor="middle" fill="#312e81">サーバー</text>
+                  </g>
+                  <!-- Request Arrow -->
+                  <g>
+                    <line x1="105" y1="65" x2="195" y2="65" stroke="#4f46e5" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="150" y="55" font-family="Inter, sans-serif" font-size="12" text-anchor="middle" fill="#4f46e5">リクエスト</text>
+                  </g>
+                  <!-- Response Arrow -->
+                   <g>
+                    <line x1="195" y1="85" x2="105" y2="85" stroke="#4f46e5" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="150" y="100" font-family="Inter, sans-serif" font-size="12" text-anchor="middle" fill="#4f46e5">レスポンス</text>
+                  </g>
+                </svg>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm md:col-span-2">
+              <h3 class="text-2xl font-semibold mb-3 text-indigo-700">リクエストとレスポンス</h3>
+              <p>クライアント（ブラウザなど）がサーバーに「この情報が欲しい」と**リクエスト**を送り、サーバーはそれに応えて「はい、どうぞ」と情報を**レスポンス**として返します。この単純なやり取りがWebの基本です。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド3: ブラウザの役割 -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="2">
+        <div class="max-w-4xl mx-auto text-center p-4 md:p-8">
+          <div class="mb-10 flex items-center justify-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="compass" class="w-6 h-6 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">ブラウザの役割</h2>
+          </div>
+          <p class="text-lg mb-8">ブラウザは、最も身近なHTTPクライアントです。ユーザーの代わりにHTTPリクエストを送信し、サーバーから受け取ったHTML、CSS、JavaScriptなどを解釈して、人間が読める美しいウェブページとして描画（レンダリング）します。</p>
+          <div class="flex justify-center items-center gap-8">
+            <div class="bg-white/50 p-4 rounded-full shadow-lg"><img src="https://www.google.com/chrome/static/images/chrome-logo.svg" alt="Chrome" class="h-16 w-16"></div>
+            <div class="bg-white/50 p-4 rounded-full shadow-lg"><img src="https://upload.wikimedia.org/wikipedia/commons/a/a0/Firefox_logo%2C_2019.svg" alt="Firefox" class="h-16 w-16"></div>
+            <div class="bg-white/50 p-4 rounded-full shadow-lg"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Safari_browser_logo.svg/1024px-Safari_browser_logo.svg.png" alt="Safari" class="h-16 w-16"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド4: ウェブページ表示の全体的な流れ -->
+      <div class="slide bg-gradient-to-br from-cyan-50 to-blue-100" data-slide="3">
+          <div class="max-w-5xl mx-auto p-4 md:p-8">
+              <div class="mb-6 flex items-center gap-4">
+                  <div class="p-3 rounded-full bg-cyan-100"><i data-lucide="arrow-right-left" class="w-6 h-6 text-cyan-600"></i></div>
+                  <h2 class="text-4xl font-bold">ウェブページ表示の流れ</h2>
+              </div>
+              <div class="relative pl-8 border-l-2 border-cyan-200">
+                  <div class="mb-6 relative">
+                      <div class="absolute -left-[41px] w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-md">1</div>
+                      <div class="bg-white/90 p-4 rounded-xl shadow-sm"><h3 class="text-xl font-semibold">URL入力</h3><p>ユーザーがブラウザにURLを入力、またはリンクをクリック。</p></div>
+                  </div>
+                  <div class="mb-6 relative">
+                      <div class="absolute -left-[41px] w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-md">2</div>
+                      <div class="bg-white/90 p-4 rounded-xl shadow-sm"><h3 class="text-xl font-semibold">DNSクエリ</h3><p>ブラウザはDNSサーバーに問い合わせ、ドメイン名からIPアドレスを取得。</p></div>
+                  </div>
+                  <div class="mb-6 relative">
+                      <div class="absolute -left-[41px] w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-md">3</div>
+                      <div class="bg-white/90 p-4 rounded-xl shadow-sm"><h3 class="text-xl font-semibold">HTTPリクエスト送信</h3><p>取得したIPアドレスのサーバーに対し、HTTPリクエストを送信。</p></div>
+                  </div>
+                  <div class="mb-6 relative">
+                      <div class="absolute -left-[41px] w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-md">4</div>
+                      <div class="bg-white/90 p-4 rounded-xl shadow-sm"><h3 class="text-xl font-semibold">HTTPレスポンス受信</h3><p>サーバーがリクエストを処理し、HTMLなどのデータを含むHTTPレスポンスを返す。</p></div>
+                  </div>
+                  <div class="mb-6 relative">
+                      <div class="absolute -left-[41px] w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-md">5</div>
+                      <div class="bg-white/90 p-4 rounded-xl shadow-sm"><h3 class="text-xl font-semibold">追加リソースの取得</h3><p>ブラウザがHTMLを解釈し、必要なCSS、JS、画像などを追加でリクエスト。</p></div>
+                  </div>
+                  <div class="relative">
+                      <div class="absolute -left-[41px] w-8 h-8 rounded-full bg-cyan-500 flex items-center justify-center text-white shadow-md">6</div>
+                      <div class="bg-white/90 p-4 rounded-xl shadow-sm"><h3 class="text-xl font-semibold">レンダリング</h3><p>ブラウザがレスポンス内容を解釈し、画面にページを描画する。</p></div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- スライド5: URLの構造 -->
+      <div class="slide bg-gradient-to-br from-pink-50 to-blue-100" data-slide="4">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-8 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-100"><i data-lucide="link" class="w-6 h-6 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">URLの構造を理解しよう</h2>
+          </div>
+          <div class="bg-white/80 p-6 rounded-xl shadow-md font-mono text-sm break-all">
+            <span class="text-purple-600">https://</span><span class="text-blue-600">github.com</span><span class="text-green-600">/oreilly-japan/real-world-http</span><span class="text-red-600">#readme</span>
+          </div>
+          <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong class="text-purple-600">スキーマ:</strong> 通信プロトコル (https, http, ftpなど)。</div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong class="text-blue-600">ホスト名:</strong> サーバーの住所を示す名前 (ドメイン名)。</div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong class="text-green-600">パス:</strong> サーバー上のリソースの場所。</div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong class="text-red-600">ハッシュ:</strong> ページ内の特定箇所を示す「目印」。サーバーには送信されない。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド6: DNSとIPアドレス (改訂) -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="5">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-8 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="book-marked" class="w-6 h-6 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">DNSとIPアドレス</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+              <p>人間は `github.com` のような名前（ホスト名）を覚えますが、コンピュータは `20.27.177.113` のような数字の住所（IPアドレス）で通信します。</p>
+              <p class="mt-4">**DNS (Domain Name System)** は、このホスト名とIPアドレスを対応させる、インターネット上の「電話帳」のようなシステムです。</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg font-mono text-sm text-green-400">
+              <p class="text-white">> dig github.com</p>
+              <p class="text-gray-400">...一部抜粋...</p>
+              <p><span class="text-yellow-400">github.com.</span> 60 IN A <span class="text-cyan-400">20.27.177.113</span></p>
+              <p class="mt-2 text-white">`dig` コマンドを使うと、DNSの問い合わせを試せます。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド7: HTTPリクエストの詳細 (改訂) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="6">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-sky-100"><i data-lucide="arrow-up-right-from-square" class="w-6 h-6 text-sky-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTPリクエストの詳細</h2>
+          </div>
+          <p class="mb-4">ブラウザがサーバーに送るリクエストは、このようなテキストデータです。</p>
+          <div class="bg-gray-800 p-4 rounded-xl shadow-lg font-mono text-sm text-white">
+            <p><span class="text-yellow-400">GET</span> <span class="text-green-400">/index.html</span> <span class="text-purple-400">HTTP/1.1</span></p>
+            <p><span class="text-cyan-400">Host:</span> example.com</p>
+            <p><span class="text-cyan-400">User-Agent:</span> Mozilla/5.0 (...)</p>
+            <p><span class="text-cyan-400">Accept:</span> text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8</p>
+            <p><span class="text-cyan-400">Accept-Encoding:</span> gzip, deflate, br</p>
+            <p><span class="text-cyan-400">Accept-Language:</span> ja,en-US;q=0.9,en;q=0.8</p>
+          </div>
+          <div class="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <p class="text-sm text-blue-800">`Accept-*` ヘッダー群は、ブラウザが「どのようなデータ形式、圧縮、言語を扱えるか」をサーバーに自己紹介し、最適なコンテンツを受け取るために使われます（コンテンツネゴシエーション）。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド8: HTTPレスポンスの詳細 -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="7">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="arrow-down-left-from-square" class="w-6 h-6 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTPレスポンスの詳細</h2>
+          </div>
+          <p class="mb-4">リクエストに対し、サーバーはこのようなレスポンスを返します。</p>
+          <div class="bg-gray-800 p-4 rounded-xl shadow-lg font-mono text-sm text-white">
+            <p><span class="text-purple-400">HTTP/1.1</span> <span class="text-yellow-400">200 OK</span></p>
+            <p><span class="text-cyan-400">Content-Type:</span> text/html; charset=UTF-8</p>
+            <p><span class="text-cyan-400">Content-Length:</span> 1270</p>
+            <p class="text-gray-500">... (空行) ...</p>
+            <p><span class="text-green-400">&lt;!DOCTYPE html&gt;&lt;html&gt;...&lt;/html&gt;</span></p>
+          </div>
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong class="text-yellow-400">ステータスコード:</strong> 結果 (200: 成功)。</div>
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong class="text-cyan-400">ヘッダー:</strong> レスポンスの付加情報。</div>
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm md:col-span-2"><strong class="text-green-400">ボディ:</strong> 実際に欲しかったデータ本体。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド9: リンクのクリック (新規・復元) -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100" data-slide="8">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="mouse-pointer-click" class="w-6 h-6 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">リンクのクリックとReferer</h2>
+          </div>
+          <p class="mb-4">ユーザーがあるページ上のリンクをクリックすると、ブラウザは次のページをリクエストします。この時、**`Referer`**ヘッダーを付与して、どのページから来たのかをサーバーに伝えます。</p>
+          <div class="bg-gray-800 p-4 rounded-xl shadow-lg font-mono text-sm text-white">
+            <p>GET /next-page.html HTTP/1.1</p>
+            <p>Host: example.com</p>
+            <p><span class="text-cyan-400">Referer:</span> https://example.com/previous-page.html</p>
+            <p>...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド10: 検索機能 (新規・復元) -->
+      <div class="slide bg-gradient-to-br from-teal-50 to-cyan-100" data-slide="9">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-cyan-100"><i data-lucide="search" class="w-6 h-6 text-cyan-600"></i></div>
+            <h2 class="text-4xl font-bold">検索機能とクエリ</h2>
+          </div>
+          <p class="mb-4">検索フォームに入力されたキーワードは、多くの場合URLの末尾に**クエリパラメータ**として付与され、GETリクエストでサーバーに送信されます。</p>
+          <div class="bg-gray-800 p-4 rounded-xl shadow-lg font-mono text-sm text-white">
+            <p class="text-yellow-400">GET <span class="text-green-400">/search<span class="text-red-500">?q=real-world-http</span></span> HTTP/1.1</p>
+            <p>Host: github.com</p>
+            <p>...</p>
+          </div>
+           <p class="mt-4 text-sm text-gray-600">`?`以降がクエリ文字列で、`q=real-world-http`のようにキーと値のペアで構成されます。</p>
+        </div>
+      </div>
+
+      <!-- スライド11: ログイン機能 (POSTメソッド) (改訂) -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="10">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="key-round" class="w-6 h-6 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">ログイン機能 (POSTメソッド)</h2>
+          </div>
+          <div class="pt-6">
+            <p class="mb-4">ID/パスワードのような機密情報は、リクエストの**ボディ**に含めて送信する**POST**メソッドが使われます。</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="space-y-4">
+                <h3 class="text-lg font-semibold">HTMLフォーム (リスト1-4)</h3>
+                <div class="code-block text-xs"><pre><code>&lt;form method="post" action="login"&gt;
+  &lt;label for="email"&gt;Email&lt;/label&gt;
+  &lt;input type="email" name="email"&gt;
+  &lt;label for="password"&gt;Password&lt;/label&gt;
+  &lt;input type="password" name="password"&gt;
+  &lt;input type="submit" value="ログイン"&gt;
+&lt;/form&gt;</code></pre></div>
+              </div>
+              <div class="space-y-4">
+                <h3 class="text-lg font-semibold">HTTPリクエスト</h3>
+                <div class="code-block text-xs"><pre><code>POST /login HTTP/1.1
+Host: example.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 27
+
+username=user&password=pass123</code></pre></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド12: Cookieとセッション管理 (改訂) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="11">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-indigo-100"><i data-lucide="cookie" class="w-6 h-6 text-indigo-600"></i></div>
+            <h2 class="text-4xl font-bold">Cookieとセッション管理</h2>
+          </div>
+          <div class="pt-6">
+            <p class="mb-4">HTTPは過去のリクエストを記憶しない「ステートレス」なプロトコルです。ログイン状態を維持するためにCookieが使われます。</p>
+            <ol class="list-decimal list-inside space-y-2 mb-4">
+              <li>ログイン成功時、サーバーは`Set-Cookie`ヘッダーでセッションIDをブラウザに保存させる。</li>
+              <li>ブラウザは次回以降のリクエストで`Cookie`ヘッダーを送信する。</li>
+              <li>サーバーはCookieを見てユーザーを識別する。</li>
+            </ol>
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <h3 class="text-lg font-semibold mb-2">リダイレクトのレスポンス例 (リスト1-6)</h3>
+              <p class="text-xs mb-2">ログイン後、`302 Found`と`Location`ヘッダーで書庫ページへリダイレクトさせつつ、`Set-Cookie`でセッション情報を保存させています。</p>
+              <div class="code-block text-xs"><pre><code>HTTP/1.1 302 Found
+Location: https://www.oreilly.co.jp/ebook/bookshelf
+Set-Cookie: osid=24882b5c30a628b44878f91fe0f5ed38; path=/
+...</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド13: まとめ (改訂) -->
+      <div class="slide bg-gradient-to-br from-emerald-50 to-teal-100" data-slide="12">
+          <div class="max-w-4xl mx-auto text-center p-4 md:p-8">
+              <h2 class="text-4xl font-bold mb-10">まとめ</h2>
+              <div class="space-y-6 text-left bg-white/80 p-8 rounded-xl shadow-lg">
+                  <div class="flex items-start gap-4">
+                      <i data-lucide="check-circle" class="w-6 h-6 text-teal-600 mt-1"></i>
+                      <p>Webはクライアントとサーバー間の **HTTPリクエスト・レスポンス** で動いている。</p>
+                  </div>
+                  <div class="flex items-start gap-4">
+                      <i data-lucide="check-circle" class="w-6 h-6 text-teal-600 mt-1"></i>
+                      <p>ユーザーの操作（リンククリック、検索、ログイン）に応じて、`Referer`ヘッダーやクエリパラメータ、`POST`メソッドなどが使い分けられる。</p>
+                  </div>
+                  <div class="flex items-start gap-4">
+                      <i data-lucide="check-circle" class="w-6 h-6 text-teal-600 mt-1"></i>
+                      <p>サーバーは`Set-Cookie`ヘッダーとリダイレクトを使い、ログイン状態の維持といった高度な機能を実現している。</p>
+                  </div>
+              </div>
+          </div>
+      </div>
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">13</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          const scrollable = slide.querySelector('.scrollable-container');
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            if (scrollable) scrollable.scrollTop = 0;
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

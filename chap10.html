@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第10章 GoによるHTTP/2, HTTP/3, HTML5の実装</title>
+  <meta name="description" content="Go言語を用いたHTTP/2, HTTP/3, Server-Sent Events, WebSocketの実装解説">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">第10章 GoによるHTTP/2, HTTP/3, HTML5の実装</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">新しいプロトコルの実装と活用</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            Go言語の標準ライブラリとサードパーティ製ライブラリを使い、HTTP/2, HTTP/3, Server-Sent Events, WebSocketといったモダンなプロトコルを実装する方法を解説します。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: HTTP/2 -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+         <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="zap" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTP/2の実装</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+              <p>Go 1.6以降、標準ライブラリはデフォルトでHTTP/2をサポートしています。クライアント・サーバー間で対応していれば、HTTPS通信時に自動でHTTP/2が選択されます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">プロトコルバージョンの確認コード</h3>
+                <div class="code-block">
+<pre><code>package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func main() {
+    resp, err := http.Get("https://google.com/")
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
+    fmt.Printf("Protocol Version: %s\n", resp.Proto)
+}</code></pre>
+                </div>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">実行方法と実行例</h3>
+                 <div class="code-block">
+<pre><code># 通常の実行 (HTTP/2が使われる)
+$ go run main.go
+Protocol Version: HTTP/2.0
+
+# 環境変数でHTTP/2クライアントを無効化
+$ GODEBUG=http2client=0 go run main.go
+Protocol Version: HTTP/1.1
+
+# デバッグログを有効化
+$ GODEBUG=http2debug=1 go run main.go
+... (詳細なフレーム情報が出力される) ...
+Protocol Version: HTTP/2.0</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド3: HTTP/2 サーバープッシュ (修正版) -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="2">
+         <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="send" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTP/2 サーバープッシュ</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+              <p>Goはサーバープッシュをサポートしています。<code class="bg-gray-200 px-1 rounded">http.ResponseWriter</code>を<code class="bg-gray-200 px-1 rounded">http.Pusher</code>にキャストし、<code class="bg-gray-200 px-1 rounded">Push()</code>メソッドを呼び出すことで、クライアントが必要とするリソースを先回りして送信できます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">サーバープッシュを行うサーバーの実装</h3>
+                <div class="code-block">
+<pre><code>package main
+
+import (
+	"fmt"
+	"net/http"
+)
+
+func main() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if pusher, ok := w.(http.Pusher); ok {
+			if err := pusher.Push("/style.css", nil); err != nil {
+				fmt.Printf("Failed to push: %v", err)
+			}
+		}
+		w.Header().Add("Content-Type", "text/html")
+		fmt.Fprint(w, `&lt;html&gt;&lt;head&gt;&lt;link rel="stylesheet" href="/style.css"&gt;&lt;/head&gt;&lt;body&gt;Hello, HTTP/2!&lt;/body&gt;&lt;/html&gt;`)
+	})
+	http.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "text/css")
+		fmt.Fprint(w, "body { color: blue; }")
+	})
+	
+	fmt.Println("Starting server on https://localhost:8443")
+	err := http.ListenAndServeTLS(":8443", "server.crt", "server.key", nil)
+	if err != nil {
+		panic(err)
+	}
+}</code></pre>
+                </div>
+                 <div class="mt-4 bg-blue-50 border-l-4 border-blue-400 p-3">
+                    <h4 class="font-bold text-blue-800">注釈: http.Pusher APIについて</h4>
+                    <p class="text-blue-700 text-sm">Go 1.20では、低水準アクセスのための`http.Flusher`や`http.Hijacker`は新しい`http.ResponseController`に統合されましたが、`http.Pusher`は古い形式のインタフェースキャストのまま残されています。</p>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド4: HTTP/3 (詳細版) -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="3">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="rocket" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTP/3 詳細な実装</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+              <p>便利な統合API（`http3.ListenAndServe`）ではなく、HTTP/2とHTTP/3のサーバーを個別に起動することで、プロトコルの連携をより深く理解できます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">quic-goのインストール</h3>
+                <div class="code-block">
+<pre><code>$ go get github.com/quic-go/quic-go/http3</code></pre>
+                </div>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">HTTP/2とHTTP/3を両方提供するサーバー (詳細版)</h3>
+                <div class="code-block">
+<pre><code>package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"github.com/quic-go/quic-go/http3"
+)
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Alt-Svc", `h3=":8443"; ma=2592000`)
+		fmt.Fprintf(w, "Hello via %s", r.Proto)
+	})
+
+	ctx, close := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer close()
+
+	h2server := &http.Server{Addr: ":8443", Handler: mux}
+	h3server := &http3.Server{Addr: ":8443", Handler: mux}
+	
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		log.Println("start at http/2 server at (TCP)https://localhost:8443")
+		log.Println(h2server.ListenAndServeTLS("server.crt", "server.key"))
+	}()
+	go func() {
+		defer wg.Done()
+		log.Println("start at http/3 server at (UDP)https://localhost:8443")
+		log.Println(h3server.ListenAndServeTLS("server.crt", "server.key"))
+	}()
+
+	&lt;-ctx.Done()
+	h2server.Shutdown(ctx)
+	h3server.Close()
+}</code></pre>
+                </div>
+                <div class="mt-4 bg-emerald-50 border-l-4 border-emerald-400 p-3">
+                    <h4 class="font-bold text-emerald-800">ブラウザごとの挙動</h4>
+                    <p class="text-emerald-700 text-sm">SafariやFirefoxはAlt-Svcヘッダを見てHTTP/3に切り替わりますが、Chromeでは`--origin-to-force-quic-on=localhost:8443`のような起動フラグが必要な場合があります。</p>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド5: 103 Early Hints -->
+      <div class="slide bg-gradient-to-br from-cyan-50 to-blue-100" data-slide="4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-cyan-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-cyan-100"><i data-lucide="rabbit" class="w-8 h-8 text-cyan-600"></i></div>
+            <h2 class="text-4xl font-bold">103 Early Hints</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>サーバープッシュの代替として推奨される機能。メインのレスポンス（200 OK）を返す前に、クライアントが先行して読み込むべきリソース（CSSやJSなど）を<code class="bg-gray-200 px-1 rounded">Link</code>ヘッダとステータスコード<code class="bg-gray-200 px-1 rounded">103</code>で通知します。</p>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-cyan-700 mb-2">Early Hintsを返すサーバーの実装</h3>
+                <div class="code-block">
+<pre><code>package main
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+)
+
+func main() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Link", "&lt;/style.css&gt;; rel=preload; as=style")
+		w.WriteHeader(http.StatusEarlyHints)
+		time.Sleep(2 * time.Second) // 時間のかかる処理をシミュレート
+		w.Header().Add("Content-Type", "text/html")
+		fmt.Fprint(w, `&lt;html&gt;&lt;head&gt;&lt;link rel="stylesheet" href="style.css"&gt;&lt;/head&gt;&lt;body&gt;
+&lt;div class="marquee"&gt;&lt;span class="marquee__content"&gt;Early Hints!&lt;/span&gt;&lt;/div&gt;
+&lt;/body&gt;&lt;/html&gt;`)
+	})
+	http.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "text/css")
+		// PDFのリスト10-6に記載のアニメーションCSS
+		fmt.Fprint(w, `
+.marquee { --gap: 1rem; position: relative; display: flex; overflow: hidden; user-select: none; gap: var(--gap); }
+.marquee__content { flex-shrink: 0; display: flex; justify-content: space-around; gap: var(--gap); min-width: 100%; animation: scroll 10s linear infinite; }
+@keyframes scroll { from { transform: translateX(0); } to { transform: translateX(calc(-100% - var(--gap))); } }`)
+	})
+	fmt.Println("Starting server on http://localhost:18888")
+	http.ListenAndServe(":18888", nil)
+}</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド6: Server-Sent Events サーバー -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="antenna" class="w-8 h-8 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">Server-Sent Events (1/4): サーバー</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <p>サーバーからクライアントへ一方向にテキストデータをプッシュ配信する技術。クライアントからの接続切断を検知することが重要です。</p>
+                </div>
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-amber-700 mb-2">素数を配信するSSEサーバー（接続切断検知あり）</h3>
+                    <div class="code-block">
+<pre><code>package main
+
+import (
+	"fmt"
+	"math/big"
+	"net/http"
+	"time"
+)
+
+// ... main関数とhtml変数は次のスライドで ...
+
+func primeHandler(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	ctx := r.Context()
+	var num int64 = 1
+	for id := 1; id <= 100; id++ {
+		select {
+		case &lt;-ctx.Done(): // クライアントの接続切断を検知
+			fmt.Println("Connection closed from client")
+			return
+		default:
+			for {
+				num++
+				if big.NewInt(num).ProbablyPrime(20) {
+					fmt.Fprintf(w, "id: %d\nevent: prime\ndata: %d\n\n", id, num)
+					flusher.Flush()
+					time.Sleep(500 * time.Millisecond)
+					break
+				}
+			}
+		}
+	}
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+       <!-- スライド7: Server-Sent Events HTML (修正版) -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="6">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="code" class="w-8 h-8 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">Server-Sent Events (2/4): HTML</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-amber-700 mb-2">イベントを受信するビュー (Mithril.js)</h3>
+                    <div class="code-block">
+<pre><code>// サーバーのmain関数内に記述
+const html = `&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;素数&lt;/title&gt;
+    &lt;script src="//unpkg.com/mithril/mithril.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;div id="root"&gt;&lt;/div&gt;
+    &lt;script&gt;
+        const Primes = {
+            primes: [],
+            oninit: function() {
+                const sse = new EventSource('/prime');
+                // 'prime' イベントを購読
+                sse.addEventListener('prime', (e) => {
+                    this.primes.unshift(e.data);
+                    m.redraw();
+                });
+            },
+            view: function() {
+                return m("ul", this.primes.map((p, i) => m("li", {key: i}, p)));
+            }
+        };
+        m.mount(document.getElementById("root"), Primes);
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;`</code></pre>
+                    </div>
+                    <div class="mt-4 bg-amber-50 border-l-4 border-amber-400 p-3">
+                        <h4 class="font-bold text-amber-800">注釈: 実装について</h4>
+                        <p class="text-amber-700 text-sm">PDFのコード例では汎用的な`onmessage`イベントを使用していますが、このスライドではサーバー側が`event: prime`と指定しているため、クライアント側も`addEventListener('prime', ...)`でイベントを明示的に購読する、より堅牢な実装にしています。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+       <!-- スライド8: Server-Sent Events Goクライアント (パーサー) -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="7">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="terminal" class="w-8 h-8 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">Server-Sent Events (3/4): Goクライアント(パーサー)</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <p>PDFリスト10-9に記載の、複数のフィールドを解釈できる汎用的なSSEクライアントです。</p>
+                </div>
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-amber-700 mb-2">複数フィールド対応クライアント</h3>
+                    <div class="code-block">
+<pre><code>package main
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+)
+
+type Event struct { Name, ID, Data string }
+
+func receiveSSE(events chan Event, res *http.Response) {
+	reader := bufio.NewReader(res.Body)
+	var event Event
+	for {
+		line, err := reader.ReadBytes('
+')
+		if err != nil { close(events); return }
+
+		switch {
+		case bytes.HasPrefix(line, []byte("id:")):
+			event.ID = string(line[4 : len(line)-1])
+		case bytes.HasPrefix(line, []byte("event:")):
+			event.Name = string(line[7 : len(line)-1])
+		case bytes.HasPrefix(line, []byte("data:")):
+			event.Data += string(line[6:])
+		case bytes.Equal(line, []byte("\n")):
+			if event.Data != "" {
+				events &lt;- event
+			}
+			event = Event{}
+		}
+	}
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+       <!-- スライド9: Server-Sent Events Goクライアント (再接続) -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="8">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="repeat" class="w-8 h-8 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">Server-Sent Events (4/4): Goクライアント(再接続)</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <p>PDFリスト10-10記載の、接続が切れた際に自動で再接続を試みる、より堅牢なクライアントです。</p>
+                </div>
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-amber-700 mb-2">自動再接続クライアント</h3>
+                    <div class="code-block">
+<pre><code>package main
+// Event構造体、receiveSSE関数は前スライドと同じ
+import (
+    "context"
+    "fmt"
+    "net/http"
+    "time"
+)
+
+func EventSource(url string) (chan Event, context.Context, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil { return nil, nil, err }
+	ctx, cancel := context.WithCancel(req.Context())
+	
+    go func(){
+        &lt;-ctx.Done()
+        cancel()
+    }()
+
+	res, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil { return nil, nil, err }
+	if res.StatusCode != 200 { /* ... */ }
+	
+	events := make(chan Event)
+	go receiveSSE(events, res)
+	return events, ctx, nil
+}
+
+func main() {
+	url := "http://localhost:18888/prime"
+	events, ctx, err := EventSource(url)
+	if err != nil { panic(err) }
+
+	for {
+		select {
+		case &lt;-ctx.Done():
+			fmt.Println("Connection closed from server. Reconnecting...")
+			time.Sleep(1 * time.Second)
+			events, ctx, err = EventSource(url)
+			if err != nil { panic(err) }
+			continue
+		case event := &lt;-events:
+			fmt.Printf("Event (Id=%s, Event=%s): %s\n", event.ID, event.Name, event.Data)
+		}
+	}
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+      <!-- スライド10: WebSocket メッセージタイプとPing/Pong -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="9">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-violet-100"><i data-lucide="arrow-right-left" class="w-8 h-8 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">WebSocket (1/4): 接続維持とメッセージタイプ</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-violet-700 mb-2">Ping/Pongによる接続維持</h3>
+                <p>長時間の無通信による接続切断を防ぐため、定期的にPingメッセージを送信し、サーバーからのPong応答を確認するハートビート機構が重要です。<code class="bg-gray-200 px-1 rounded">SetPongHandler</code>でPong受信時の処理（例: ReadDeadlineの延長）を定義します。</p>
+                 <div class="code-block mt-2">
+<pre><code>// Pongメッセージ受信時のハンドラ設定
+conn.SetPongHandler(func(string) error {
+    conn.SetReadDeadline(time.Now().Add(pongWait))
+    return nil
+})</code></pre>
+                </div>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-violet-700 mb-2">主要なメッセージタイプ</h3>
+                <p>gorilla/websocketライブラリで定義されているメッセージタイプです。</p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-sm">
+                    <li><code class="bg-gray-200 px-1 rounded">TextMessage (1)</code>: UTF-8形式のテキストデータ</li>
+                    <li><code class="bg-gray-200 px-1 rounded">BinaryMessage (2)</code>: バイナリデータ</li>
+                    <li><code class="bg-gray-200 px-1 rounded">CloseMessage (8)</code>: 接続終了を通知</li>
+                    <li><code class="bg-gray-200 px-1 rounded">PingMessage (9)</code>: Ping（生存確認）を送信</li>
+                    <li><code class="bg-gray-200 px-1 rounded">PongMessage (10)</code>: Pingに対する応答</li>
+                </ul>
+            </div>
+             <div class="mt-4 bg-violet-50 border-l-4 border-violet-400 p-3">
+                <h4 class="font-bold text-violet-800">注釈: ライブラリの選定理由</h4>
+                <p class="text-violet-700 text-sm">Goの準標準ライブラリ `golang.org/x/net/websocket` は非推奨となっています。`nhooyr.io/websocket` も有力な選択肢ですが、本スライドでは歴史と実績が豊富で、利用者も多い `gorilla/websocket` を採用しています。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド11: WebSocket Hub (ルーム) の概念 -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="10">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-violet-100"><i data-lucide="users" class="w-8 h-8 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">WebSocket (2/4): Hub（ルーム）の概念</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <p>単なるEchoサーバーを超え、チャットアプリのような実践的なユースケースでは、複数のクライアント間でメッセージをやり取りする「ルーム」の概念が必要になります。</p>
+                    <p class="mt-2">`gorilla/websocket`のサンプルでは、このルーム機能を`Hub`という構造体で実装しています。</p>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-violet-700 mb-2">Hubの役割</h3>
+                     <ul class="list-disc list-inside mt-2 space-y-2">
+                        <li><strong>クライアント管理:</strong> 現在接続している全クライアントの情報を保持する。</li>
+                        <li><strong>メッセージのブロードキャスト:</strong> あるクライアントから受信したメッセージを、ルームにいる他の全クライアントに送信する。</li>
+                        <li><strong>登録と抹消:</strong> 新しいクライアントの接続（登録）と切断（抹消）を管理する。</li>
+                    </ul>
+                    <p class="mt-4">これらの処理は、Goのチャネルを使って非同期かつ安全に行われます。</p>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <!-- スライド12: WebSocket Hub の実装 -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="11">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-violet-100"><i data-lucide="cpu" class="w-8 h-8 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">WebSocket (3/4): Hubの実装</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-violet-700 mb-2">Hub構造体とrunメソッド</h3>
+                    <div class="code-block">
+<pre><code>// PDF リスト10-14より
+type Hub struct {
+	clients    map[*Client]bool
+	broadcast  chan []byte
+	register   chan *Client
+	unregister chan *Client
+}
+
+func (h *Hub) run() {
+	for {
+		select {
+		case client := &lt;-h.register:
+			h.clients[client] = true
+		case client := &lt;-h.unregister:
+			if _, ok := h.clients[client]; ok {
+				delete(h.clients, client)
+				close(client.send)
+			}
+		case message := &lt;-h.broadcast:
+			for client := range h.clients {
+				select {
+				case client.send &lt;- message:
+				default:
+					close(client.send)
+					delete(h.clients, client)
+				}
+			}
+		}
+	}
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+      <!-- スライド13: WebSocket ClientとHubの連携 (修正版) -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="12">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-violet-100"><i data-lucide="link" class="w-8 h-8 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">WebSocket (4/4): クライアントとHubの連携</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-violet-700 mb-2">クライアント構造体</h3>
+                    <p>各クライアントは、Hubへの参照と自身のWebSocketコネクション、メッセージ送信用のチャネルを保持します。</p>
+                    <div class="code-block">
+<pre><code>type Client struct {
+	hub  *Hub
+	conn *websocket.Conn
+	send chan []byte
+}</code></pre>
+                    </div>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-violet-700 mb-2">HTTPハンドラでの連携</h3>
+                     <div class="code-block">
+<pre><code>func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+    conn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil { /* ... */ }
+    client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+    client.hub.register &lt;- client // Hubにクライアントを登録
+
+    go client.writePump()
+    go client.readPump()
+}</code></pre>
+                     </div>
+                     <div class="mt-4 bg-violet-50 border-l-4 border-violet-400 p-3">
+                        <h4 class="font-bold text-violet-800">注釈: upgrader.Upgradeの内部動作</h4>
+                        <p class="text-violet-700 text-sm">`upgrader.Upgrade`は内部で`http.Hijacker`を利用してTCPコネクションの制御を奪い、手動で`101 Switching Protocols`レスポンスを返すことで、HTTPからWebSocketプロトコルへ移行しています。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+      <!-- スライド14: まとめ (修正版) -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="13">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="check-circle" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">まとめ</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>HTTP/2:</strong> 標準ライブラリで自動対応。デバッグも環境変数で容易。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>HTTP/3:</strong> <code class="bg-gray-200 px-1 rounded">quic-go</code>で実装可能。HTTP/2との併用が現実的。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>Early Hints:</strong> <code class="bg-gray-200 px-1 rounded">WriteHeader</code>で先行してリソースを通知できる。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>Server-Sent Events:</strong> 接続切断検知を含めた堅牢な一方向プッシュ通信。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>WebSocket:</strong> <code class="bg-gray-200 px-1 rounded">gorilla/websocket</code>とHubモデルで実践的な双方向通信を実装。</div>
+            </div>
+             <div class="mt-6 bg-white/80 p-6 rounded-xl shadow-md">
+                  <h3 class="text-2xl font-semibold text-indigo-700 mb-3 text-center">結論</h3>
+                  <p class="text-center">Goは、標準ライブラリと活発なエコシステムにより、HTTP/1.1から最新のプロトコルまで、幅広いユースケースに柔軟かつ効率的に対応することができます。</p>
+              </div>
+               <div class="mt-6 bg-gray-100 p-4 rounded-xl">
+                  <h4 class="font-bold text-gray-800">本章で扱わなかったトピック</h4>
+                  <p class="text-gray-700 text-sm mt-2">ブラウザ間のリアルタイム通信を実現する<strong class="font-bold">WebRTC</strong>という関連技術も存在します。しかし、そのプロトコルは非常に複雑であり、本書の範囲を超えるため今回は扱いませんでした。Goでの実装には`pion`などのライブラリが存在し、さらなる学習の指針となります。</p>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">14</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            slide.scrollTop = 0; // スライド切り替え時に先頭にスクロール
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft') {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

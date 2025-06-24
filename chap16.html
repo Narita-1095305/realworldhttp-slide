@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第16章 セキュリティ：ブラウザを守るHTTPの機能</title>
+  <meta name="description" content="ウェブのセキュリティを支えるHTTPの機能（CSP, HSTS, CORSなど）と、代表的な攻撃手法への対策を解説">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">第16章 セキュリティ：ブラウザを守るHTTPの機能</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">代表的な攻撃手法とその対策</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            XSS、CSRF、中間者攻撃といった代表的な攻撃手法と、それに対抗するためのHTTPのセキュリティ機能（CSP, HSTS, CORSなど）を解説します。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: ブラウザを狙う攻撃 -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+         <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="shield" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">ブラウザを狙う攻撃の特徴</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>OSを直接狙う従来型の攻撃とは異なり、ブラウザそのものや、ブラウザが閲覧するウェブアプリケーションの脆弱性を標的とします。</p>
+                <p class="mt-2">攻撃の目的は、ブラウザに保存されたセッショントークンや個人情報を盗み出し、不正ログインや金銭的被害に繋げることです。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド3: XSS -->
+      <div class="slide bg-gradient-to-br from-red-50 to-orange-100" data-slide="2">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-red-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-orange-100"><i data-lucide="bug" class="w-8 h-8 text-orange-600"></i></div>
+            <h2 class="text-4xl font-bold">クロスサイトスクリプティング (XSS)</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>多くの攻撃の起点となる、最も危険な脆弱性の一つ。ユーザーの入力値をサーバーが検証せずにそのままHTMLに出力することで、悪意のあるスクリプトが他のユーザーのブラウザ上で実行されてしまいます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-orange-700 mb-2">攻撃例</h3>
+                <div class="code-block">
+<pre><code>&lt;!-- 掲示板の名前欄に以下が入力される --&gt;
+&lt;script&gt;alert("XSS");&lt;/script&gt;</code></pre>
+                </div>
+                <p class="mt-2 text-sm">この名前が表示されるページを閲覧した全ユーザーのブラウザで、意図しないアラートが表示されます。実際にはクッキーを外部に送信するなど、より悪質なコードが実行されます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-orange-700 mb-2">対策</h3>
+                 <ul class="list-disc list-inside space-y-1 text-sm">
+                    <li><strong>サーバー側:</strong> 出力直前のエスケープ処理を徹底する。テンプレートエンジンなどのライブラリを利用する。</li>
+                    <li><strong>ブラウザ側 (クッキー):</strong> `httpOnly`属性を付与し、JavaScriptからのクッキーへのアクセスを禁止する。</li>
+                     <li><strong>ブラウザ側 (CSP):</strong> 次のスライドで解説するContent-Security-Policyで、スクリプトの実行元を厳格に制限する。</li>
+                </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド4: Content-Security-Policy (CSP) -->
+      <div class="slide bg-gradient-to-br from-red-50 to-orange-100" data-slide="3">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-red-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-orange-100"><i data-lucide="shield-check" class="w-8 h-8 text-orange-600"></i></div>
+            <h2 class="text-4xl font-bold">Content-Security-Policy (CSP)</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <p>XSS対策の切り札。`Content-Security-Policy`ヘッダーをサーバーから送信することで、ブラウザが読み込むリソース（スクリプト、画像、CSSなど）の取得元を厳格に制限できます。</p>
+                </div>
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-orange-700 mb-2">主なディレクティブ</h3>
+                     <div class="code-block text-xs">
+<pre><code># script-src: スクリプトの読み込み元を自分自身('self')とstore.example.comに限定
+# img-src: 画像の読み込み元を自分自身とデータURIなどに限定
+# object-src: プラグインなどを禁止
+Content-Security-Policy: script-src 'self' https://store.example.com; img-src 'self' data:; object-src 'none'</code></pre>
+                    </div>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-orange-700 mb-2">段階的な導入</h3>
+                    <p class="text-sm">強力すぎるため、最初は`Content-Security-Policy-Report-Only`ヘッダーを使い、違反を検知してもブロックはせず、指定したURLにレポートのみを送信するモードで運用を開始するのが一般的です。</p>
+                </div>
+            </div>
+        </div>
+      </div>
+
+       <!-- スライド5: CORS -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="arrow-right-left" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">CORS (クロスオリジンリソースシェアリング)</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>オリジンをまたいだリソース共有を制御する仕組み。APIサーバーを「意図しないサイトからのタダ乗り」から守ることが主な目的です。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">プリフライトリクエスト</h3>
+                <p>単純なリクエスト（GET, HEAD, POSTの一部）以外の場合、実際の通信の前に`OPTIONS`メソッドによる「プリフライトリクエスト」が送信されます。ここでサーバーに許可されているメソッドやヘッダーを確認し、問題なければ実際のリクエストが送信されます。</p>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">主要なヘッダー</h3>
+                <p class="text-sm">サーバーは以下のヘッダーを返すことで、どのオリジンからの、どのメソッドやヘッダーを持つリクエストを許可するかを表明します。</p>
+                 <ul class="list-disc list-inside space-y-1 text-xs mt-2">
+                    <li>`Access-Control-Allow-Origin`</li>
+                    <li>`Access-Control-Allow-Methods`</li>
+                    <li>`Access-Control-Allow-Headers`</li>
+                </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド6: 中間者攻撃 (MITM)とHSTS -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-100"><i data-lucide="wifi-off" class="w-8 h-8 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">中間者攻撃とHSTS</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-rose-700 mb-2">中間者攻撃 (MITM)</h3>
+                <p>通信経路上で第三者がリクエストやレスポンスを盗聴・改ざんする攻撃。無料Wi-Fiなどが起点となることがあります。根本的な対策は**HTTPSの強制**です。</p>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-rose-700 mb-2">HSTS (HTTP Strict Transport Security)</h3>
+                <p>一度アクセスしたサイトに対して、以降は強制的にHTTPSで接続するようブラウザに指示する仕組み。`Strict-Transport-Security`ヘッダーで実現します。</p>
+                 <div class="code-block mt-2">
+<pre><code>Strict-Transport-Security: max-age=31536000; includeSubDomains; preload</code></pre>
+                </div>
+                 <p class="text-xs mt-2">初回アクセス時のリスクをなくすため、主要なブラウザはHSTSを適用するドメインの「プリロードリスト」を内蔵しています。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド7: CSRFとセッションハイジャック -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="6">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-100"><i data-lucide="key-round" class="w-8 h-8 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">セッションハイジャックとCSRF</h2>
+          </div>
+          <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-rose-700 mb-2">セッションハイジャック</h3>
+                <p class="text-sm">XSSや中間者攻撃によってセッショントークン（クッキー）を盗み出し、正規のユーザーになりすましてサービスを不正利用する攻撃。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-rose-700 mb-2">CSRF (クロスサイトリクエストフォージェリ)</h3>
+                <p class="text-sm">罠サイトにアクセスしたユーザーのブラウザに、意図しないリクエスト（例: 商品の購入、退会処理）を別のサイトに対して強制的に送信させる攻撃。</p>
+                 <h4 class="text-md font-semibold text-rose-600 mt-4">対策</h4>
+                  <ul class="list-disc list-inside space-y-1 text-xs mt-1">
+                    <li><strong>CSRFトークン:</strong> リクエストごとに一意なトークンを埋め込み、サーバー側で検証する。</li>
+                    <li><strong>SameSite属性:</strong> クッキーに`SameSite`属性を付与し、別サイトからのリクエストでクッキーが送信されるのを防ぐ。</li>
+                  </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド8: クリックジャッキング -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="7">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-100"><i data-lucide="mouse-pointer" class="w-8 h-8 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">クリックジャッキング</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>透明な`iframe`を悪意のあるページに重ね、ユーザーが意図しないボタン（例: SNSのシェアボタン）をクリックさせてしまう攻撃。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-rose-700 mb-2">対策</h3>
+                <p>サーバーから`Content-Security-Policy`ヘッダーを送信し、`frame-ancestors`ディレクティブで`iframe`内での表示を制御します。</p>
+                 <div class="code-block mt-2 text-xs">
+<pre><code># どのサイトからもiframeでの表示を許可しない
+Content-Security-Policy: frame-ancestors 'none'
+
+# 同一オリジンからのみ許可
+Content-Security-Policy: frame-ancestors 'self'</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+       <!-- スライド9: リスト型アカウントハッキング (修正版) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="8">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-indigo-100"><i data-lucide="list-checks" class="w-8 h-8 text-indigo-600"></i></div>
+            <h2 class="text-4xl font-bold">リスト型アカウントハッキング</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>あるサービスから漏洩したIDとパスワードのリストを使い、他のサービスで同じ組み合わせを試して不正ログインを行う攻撃。パスワードの使い回しが原因となります。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">対策</h3>
+                <ul class="list-disc list-inside space-y-2 text-sm">
+                    <li><strong>パスワードのストレッチ:</strong> `bcrypt`や`scrypt`のような計算コストの高いハッシュ関数とソルトを使い、パスワードを安全に保存する。</li>
+                    <li><strong>多要素認証 (MFA):</strong> パスワード（知識）に加え、スマートフォン（所有）や指紋（生体）など複数の要素で認証する。</li>
+                    <li><strong>IdPaaSの利用:</strong> そもそも自前でパスワードを管理せず、Auth0やAWS Cognitoのような外部IDプラットフォームを利用する。</li>
+                </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド10: パスワードマネージャーのサポート (新規追加) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="9">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-indigo-100"><i data-lucide="key" class="w-8 h-8 text-indigo-600"></i></div>
+            <h2 class="text-4xl font-bold">パスワードマネージャーのサポート</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">`autocomplete`属性の活用</h3>
+                <p>パスワードマネージャーの利用は、リスト型攻撃やフィッシングへの有効な対策です。開発者は`<input>`タグに適切な`autocomplete`属性を設定することで、その利用を支援すべきです。</p>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-indigo-700 mb-2">ログインフォームの実装例</h3>
+                <div class="code-block text-xs">
+<pre><code>&lt;form action="/login" method="post"&gt;
+  &lt;input type="text" name="username" autocomplete="username" required&gt;
+  &lt;input type="password" name="password" autocomplete="current-password" required&gt;
+  &lt;button type="submit"&gt;ログイン&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+                </div>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-indigo-700 mb-2">新規登録フォームの実装例</h3>
+                <div class="code-block text-xs">
+<pre><code>&lt;form action="/signup" method="post"&gt;
+  &lt;input type="text" name="username" autocomplete="username" required&gt;
+  &lt;input type="password" name="password" autocomplete="new-password" required&gt;
+  &lt;button type="submit"&gt;登録&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド11: TOTPの実装 -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="10">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-indigo-100"><i data-lucide="smartphone" class="w-8 h-8 text-indigo-600"></i></div>
+            <h2 class="text-4xl font-bold">TOTPの実装 (Go)</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+                 <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-semibold text-indigo-700 mb-2">TOTP (タイムベース・ワンタイムパスワード)</h3>
+                    <p>MFAで広く利用されるアルゴリズム。秘密鍵と現在時刻から一定時間だけ有効な6桁のコードを生成します。</p>
+                </div>
+                 <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-semibold text-indigo-700 mb-2">ライブラリのインストール</h3>
+                    <div class="code-block"><pre><code>$ go get github.com/pquerna/otp</code></pre></div>
+                </div>
+                 <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-semibold text-indigo-700 mb-2">実装例 (PDFリスト16-8)</h3>
+                    <div class="code-block text-xs">
+<pre><code>package main
+import ("fmt"; "image/png"; "log"; "os"; "github.com/pquerna/otp/totp")
+
+func main() {
+    key, _ := totp.Generate(totp.GenerateOpts{
+        Issuer: "Example.com", AccountName: "alice@example.com",
+    })
+    f, _ := os.Create("qr.png")
+    img, _ := key.Image(200, 200)
+    png.Encode(f, img)
+
+    // ... ログイン時 ...
+    passcode := "123456" // 仮のユーザー入力
+    valid := totp.Validate(passcode, key.Secret())
+    if valid { log.Println("Success!") } else { log.Println("Failed...") }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+       <!-- スライド12: PassKeys (WebAuthn) (修正版) -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="11">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="fingerprint" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">PassKeys (WebAuthn)</h2>
+          </div>
+           <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>パスワードを不要にする新しい認証規格。デバイスに安全に保存された公開鍵暗号を用いて認証を行います。</p>
+                <p class="mt-2 text-sm">オリジンごとに鍵が生成されるため、フィッシングサイトでは利用できず、極めて高い耐性を持ちます。</p>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">認証フローと主要API</h3>
+                 <ol class="list-decimal list-inside space-y-2 text-sm">
+                    <li><strong>ユーザー登録時:</strong> `navigator.credentials.create()` を使い、サーバーから受け取ったチャレンジを元に鍵ペアを生成し、公開鍵をサーバーに登録する。</li>
+                    <li><strong>ログイン時:</strong> `navigator.credentials.get()` を使い、サーバーからのチャレンジに対して秘密鍵で署名し、その結果をサーバーで検証する。</li>
+                </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド13: 依存関係の脆弱性管理 (新規追加) -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="12">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="shield-x" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">依存関係の脆弱性管理</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>現代のソフトウェア開発はサードパーティ製ライブラリへの依存が不可欠ですが、それらのライブラリに脆弱性が含まれるリスクが常に伴います（サプライチェーン攻撃）。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">対策ツール</h3>
+                <p>プロジェクトが依存するライブラリの脆弱性を定期的にスキャンし、警告するツールの利用が必須です。</p>
+                <ul class="list-disc list-inside space-y-1 text-sm mt-2">
+                    <li><strong>npm audit:</strong> Node.jsプロジェクトの依存関係をチェック。</li>
+                    <li><strong>Snyk:</strong> 多言語対応の脆弱性スキャンサービス。</li>
+                    <li><strong>Trivy:</strong> コンテナイメージやファイルシステムの脆弱性をスキャンするOSSツール。</li>
+                    <li><strong>GitHub Dependabot:</strong> リポジトリの依存関係の脆弱性を自動で検知し、プルリクエストを生成。</li>
+                </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+       <!-- スライド14: ウェブ広告とプライバシー (新規追加) -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="13">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="eye-off" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">ウェブ広告とプライバシー</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">トラッキング技術</h3>
+                 <ul class="list-disc list-inside space-y-2 text-sm">
+                    <li><strong>サードパーティクッキー:</strong> 複数のサイトを横断してユーザーの行動を追跡する。</li>
+                    <li><strong>ゾンビクッキー:</strong> ETagや各種ストレージを悪用し、削除されても復活する追跡技術。</li>
+                    <li><strong>フィンガープリント:</strong> ブラウザやデバイスの情報からユーザーを統計的に推定する。</li>
+                </ul>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">ブラウザベンダーの対策</h3>
+                <p>プライバシー保護のため、SafariやFirefoxはサードパーティクッキーをデフォルトでブロックするなど、トラッキング防止機能を強化しています。Chromeも段階的に廃止を進めています。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド15: まとめ -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="14">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="check-circle" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">まとめ</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>XSS対策:</strong> CSPと出力時エスケープが基本。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>CSRF対策:</strong> CSRFトークンとSameSiteクッキーで意図しないリクエストを防ぐ。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>中間者攻撃対策:</strong> HTTPSを強制するHSTSが有効。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>アカウントハイジャック対策:</strong> パスワードのストレッチ、MFA、パスワードマネージャーの利用促進を組み合わせる。</div>
+            </div>
+             <div class="mt-6 bg-white/80 p-6 rounded-xl shadow-md">
+                  <h3 class="text-2xl font-semibold text-indigo-700 mb-3 text-center">結論</h3>
+                  <p class="text-center">ブラウザとサーバーが連携し、HTTPヘッダーや新しいAPIを活用することで、様々な脅威からユーザーを守ることができます。多層的な防御を意識することが重要です。</p>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">15</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            slide.scrollTop = 0; // スライド切り替え時に先頭にスクロール
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft') {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第5章 HTTP/1.1のシンタックス (改訂版)</title>
+  <meta name="description" content="HTTP/1.1の技術的特徴とその進化についてのプレゼンテーション">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      word-wrap: normal;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">HTTP/1.1のシンタックス</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">高速化と安全性を求めた拡張</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            ウェブの基盤を支えるHTTP/1.1。そのパフォーマンスとセキュリティを向上させた主要なシンタックス（仕様）の進化を探ります。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: アジェンダ -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="list" class="w-6 h-6 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">アジェンダ</h2>
+          </div>
+          <ol class="list-decimal list-inside space-y-3 text-lg text-gray-700">
+            <li>Keep-Aliveによる高速化とパイプライニング</li>
+            <li>TLSによる安全な通信（ハイブリッド暗号）</li>
+            <li>TLS証明書の種類 (DV, OV, EV)</li>
+            <li>新しいメソッド (PUT, DELETE, OPTIONS, etc.)</li>
+            <li>プロトコルアップグレード</li>
+            <li>バーチャルホスト (Hostヘッダ)</li>
+            <li>チャンク転送エンコーディング (Trailerヘッダ)</li>
+            <li>コンテンツ送信の確認 (Expect: 100-continue)</li>
+            <li>データURIスキーム</li>
+          </ol>
+        </div>
+      </div>
+      
+      <!-- スライド3: Keep-Alive & パイプライニング -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="2">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="fast-forward" class="w-6 h-6 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">通信の高速化</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white/80 p-6 rounded-xl shadow-md">
+              <h3 class="text-xl font-semibold mb-2">持続的接続 (Keep-Alive)</h3>
+              <p class="text-gray-600 text-sm">一度確立したTCP接続を再利用し、接続・切断のオーバーヘッドを削減。HTTP/1.1からデフォルトで有効になりました。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-md">
+              <h3 class="text-xl font-semibold mb-2">パイプライニングの課題</h3>
+              <p class="text-gray-600 text-sm">レスポンスを待たずに複数リクエストを送る技術ですが、Head-of-Lineブロッキング問題のため、広くは使われませんでした。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド4: TLS -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="3">
+        <div class="max-w-4xl mx-auto text-center p-4 md:p-8">
+          <h2 class="text-4xl font-bold mb-6">TLSによる安全な通信</h2>
+          <p class="text-lg text-gray-600 mb-8">HTTPにSSL/TLSによる暗号化を追加したHTTPSは、現代のWebに不可欠です。</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+            <div class="bg-white/80 p-6 rounded-xl shadow-md"><h3 class="font-semibold text-xl mb-2">機密性</h3><p>通信内容を暗号化</p></div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-md"><h3 class="font-semibold text-xl mb-2">完全性</h3><p>データの改ざんを防止</p></div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-md"><h3 class="font-semibold text-xl mb-2">認証</h3><p>通信相手の身元を確認</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド5: ハイブリッド暗号 -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-violet-100"><i data-lucide="lock" class="w-6 h-6 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">TLSを支えるハイブリッド暗号</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold mb-2">公開鍵暗号 (鍵交換用)</h3>
+                <p class="text-gray-600 text-sm">安全に鍵を交換できるが、処理が非常に遅い。</p>
+              </div>
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold mb-2">共通鍵暗号 (通信暗号化用)</h3>
+                <p class="text-gray-600 text-sm">処理は高速だが、安全な鍵の共有が課題。</p>
+              </div>
+            </div>
+            <div class="mt-6 p-4 bg-violet-50 rounded-xl border border-violet-200">
+              <h4 class="font-semibold text-violet-800 mb-2">Go言語によるベンチマーク例 (リスト5-1)</h4>
+              <p class="text-xs text-gray-600 mb-2">公開鍵暗号(RSA)と共通鍵暗号(AES)の速度差を測定するコード。この圧倒的な速度差(15,000倍以上)のため、TLSでは両者を組み合わせたハイブリッド方式が採用されています。</p>
+              <div class="code-block text-xs"><pre><code>package main
+import (
+    "crypto/aes"
+    "crypto/cipher"
+    "crypto/md5"
+    "crypto/rand"
+    "crypto/rsa"
+    "io"
+    "testing"
+)
+
+func BenchmarkRSAEncryption(b *testing.B) {
+    privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+    publicKey := &privateKey.PublicKey
+    sourceData := make([]byte, 128)
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        rsa.EncryptOAEP(md5.New(), rand.Reader, publicKey, sourceData, nil)
+    }
+}
+func BenchmarkAESEncryption(b *testing.B) {
+    key := make([]byte, 32)
+    nonce := make([]byte, 12)
+    sourceData := make([]byte, 128)
+    block, _ := aes.NewCipher(key)
+    gcm, _ := cipher.NewGCM(block)
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        gcm.Seal(nil, nonce, sourceData, nil)
+    }
+}</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド6: TLS証明書の種類 (新規) -->
+      <div class="slide bg-gradient-to-br from-green-50 to-teal-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+           <div class="sticky-header bg-gradient-to-br from-green-50 to-teal-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-teal-100"><i data-lucide="file-check-2" class="w-6 h-6 text-teal-600"></i></div>
+            <h2 class="text-4xl font-bold">TLS証明書の種類</h2>
+          </div>
+          <div class="pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <h3 class="text-lg font-bold text-teal-700">DV (ドメイン認証)</h3>
+              <p class="text-sm mt-2">ドメインの所有権のみを検証。最も手軽で、Let's Encryptなどで無料で自動発行可能。</p>
+            </div>
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <h3 class="text-lg font-bold text-teal-700">OV (組織認証)</h3>
+              <p class="text-sm mt-2">ドメインに加え、運営組織が法的に実在することを検証。企業の公式サイトなどで利用。</p>
+            </div>
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <h3 class="text-lg font-bold text-teal-700">EV (拡張認証)</h3>
+              <p class="text-sm mt-2">最も厳格な検証。かつてはブラウザのアドレスバーが緑色になったが、フィッシング対策効果が疑問視され、現在は特別なUI表示は廃止。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド7: 新しいメソッド (改訂) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="6">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-sky-100"><i data-lucide="plus-circle" class="w-6 h-6 text-sky-600"></i></div>
+            <h2 class="text-4xl font-bold">新しいメソッドの追加</h2>
+          </div>
+          <div class="space-y-3">
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong>PUT:</strong> 指定したURIにリソースを作成または<strong class="font-bold">全体を</strong>置換</div>
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong>PATCH:</strong> 指定したURIのリソースを<strong class="font-bold">部分的に</strong>変更</div>
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong>DELETE:</strong> 指定したURIのリソースを削除</div>
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong>OPTIONS:</strong> 指定したURIでサポートされているメソッド一覧を要求</div>
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong>CONNECT:</strong> プロキシサーバーにトンネル接続を要求</div>
+            <div class="bg-white/80 p-3 rounded-xl shadow-sm"><strong>TRACE:</strong> リクエストをそのまま返すデバッグ用。XST脆弱性の原因となり現在は利用不可。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド8: プロトコルアップグレード -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="7">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-rose-100"><i data-lucide="git-compare-arrows" class="w-6 h-6 text-rose-600"></i></div>
+            <h2 class="text-4xl font-bold">プロトコルのアップグレード</h2>
+          </div>
+          <p class="text-gray-700 mb-4">HTTP/1.1の接続を、WebSocketなど別のプロトコルに切り替える仕組みです。</p>
+          <div class="bg-white/80 p-6 rounded-xl shadow-md">
+            <h3 class="text-lg font-semibold mb-2 text-rose-700">アップグレードフロー</h3>
+            <ol class="list-decimal list-inside text-sm space-y-2">
+              <li>クライアントが `Upgrade` と `Connection: Upgrade` ヘッダを含むリクエストを送信。</li>
+              <li>サーバーがプロトコルの切り替えを承諾する場合、`101 Switching Protocols` ステータスコードと `Upgrade`, `Connection` ヘッダを返す。</li>
+              <li>これ以降、同じTCP接続上で新しいプロトコルによる通信が開始される。</li>
+            </ol>
+            <div class="code-block mt-4 text-xs"><pre><code># Client Request
+GET /chat HTTP/1.1
+Host: example.com
+Upgrade: websocket
+Connection: Upgrade
+
+# Server Response
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade</code></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド9: バーチャルホスト -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="8">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="server" class="w-6 h-6 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">バーチャルホスト</h2>
+          </div>
+          <p class="text-gray-700 mb-4">HTTP/1.1から必須になった`Host`ヘッダーにより、1つのIPアドレスで複数のWebサイトを運用できるようになりました。</p>
+          <div class="bg-white/80 p-6 rounded-xl shadow-md">
+            <h3 class="text-lg font-semibold mb-2 text-amber-700">Apacheでの設定例</h3>
+            <p class="text-sm text-gray-600 mb-2">Webサーバーは`Host`ヘッダーの値を見て、対応するコンテンツを返します。</p>
+            <div class="code-block text-xs"><pre><code># tokyo.example.comへのリクエスト
+GET / HTTP/1.1
+Host: tokyo.example.com
+
+# Apache側の設定
+&lt;VirtualHost *:80&gt;
+    ServerName tokyo.example.com
+    DocumentRoot /www/tokyo
+&lt;/VirtualHost&gt;
+
+&lt;VirtualHost *:80&gt;
+    ServerName osaka.example.com
+    DocumentRoot /www/osaka
+&lt;/VirtualHost&gt;</code></pre></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド10: チャンク転送 (改訂) -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-blue-100" data-slide="9">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="blocks" class="w-6 h-6 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">チャンク転送エンコーディング</h2>
+          </div>
+          <p class="text-gray-700 mb-4">`Content-Length`が不明なコンテンツを動的に送信するための仕組みです。`Transfer-Encoding: chunked`ヘッダで示されます。</p>
+          <div class="bg-white/80 p-6 rounded-xl shadow-md">
+            <p class="text-sm text-gray-600 mb-2">ボディは「16進数のサイズ」と「データ片」の連続で構成され、最後のサイズ0のチャンクで終了します。</p>
+            <div class="code-block text-xs"><pre><code>HTTP/1.1 200 OK
+Content-Type: text/plain
+Transfer-Encoding: chunked
+Trailer: Content-Type
+
+4
+Wiki
+5
+pedia
+E
+ in
+chunks.
+0
+Content-Type: text/plain</code></pre></div>
+            <p class="text-sm text-gray-600 mt-4">`Trailer`ヘッダーを使うと、チャンク転送の末尾にヘッダーフィールドを追加できます。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド11: Expect/Continue -->
+      <div class="slide bg-gradient-to-br from-lime-50 to-green-100" data-slide="10">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-green-100"><i data-lucide="hand" class="w-6 h-6 text-green-600"></i></div>
+            <h2 class="text-4xl font-bold">コンテンツ送信の事前確認</h2>
+          </div>
+          <p class="text-gray-700 mb-4">巨大なコンテンツを送信する前に、サーバーがリクエストを受け入れ可能か確認するための仕組みです。</p>
+           <div class="bg-white/80 p-6 rounded-xl shadow-md">
+            <h3 class="text-lg font-semibold mb-2 text-green-700">Expect: 100-continue フロー</h3>
+            <ol class="list-decimal list-inside text-sm space-y-2">
+              <li>クライアントが`Expect: 100-continue`ヘッダを付けてヘッダのみ送信。</li>
+              <li>サーバーが受け入れ可能な場合、`100 Continue`レスポンスを返す。</li>
+              <li>クライアントは`100 Continue`を受け取った後、ボディ本体を送信する。</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド12: データURIスキーム -->
+      <div class="slide bg-gradient-to-br from-teal-50 to-cyan-100" data-slide="11">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-cyan-100"><i data-lucide="file-symlink" class="w-6 h-6 text-cyan-600"></i></div>
+            <h2 class="text-4xl font-bold">データURIスキーム</h2>
+          </div>
+          <p class="text-gray-700 mb-4">小さなリソースを外部ファイルとしてではなく、URL自体に直接埋め込むための仕組みです。</p>
+           <div class="bg-white/80 p-6 rounded-xl shadow-md">
+            <p class="text-sm text-gray-600 mb-2">HTTPリクエストを削減できるため、小さなアイコン画像などをCSSに埋め込む際によく利用されます。</p>
+            <div class="code-block text-xs"><pre><code>/* data URIを使ったCSSの例 */
+.icon {
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...");
+}
+
+/* data URIを使ったimgタグの例 */
+&lt;img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."&gt;</code></pre></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド13: まとめ -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="12">
+        <div class="max-w-4xl mx-auto text-center p-4 md:p-8">
+          <h2 class="text-4xl font-bold mb-6">まとめ</h2>
+          <div class="bg-white/80 rounded-xl shadow-lg p-8">
+            <p class="text-gray-700 mb-4">HTTP/1.1は、Keep-Aliveや新しいメソッド、Hostヘッダ、チャンク転送といった多くのシンタックス拡張により、Webをより高速で、安全で、多機能なプラットフォームへと進化させました。これらの機能は、HTTP/2やHTTP/3の基礎ともなっており、現代のWebを理解する上で不可欠な知識です。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">13</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          const scrollable = slide.querySelector('.scrollable-container');
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            if (scrollable) scrollable.scrollTop = 0;
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

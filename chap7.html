@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第7章 GoによるHTTP/1.1クライアントの実装 (改訂版)</title>
+  <meta name="description" content="TCPソケットプログラミングからHTTPクライアントの核心へ">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      word-wrap: normal;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">GoによるHTTP/1.1クライアントの実装</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">TCPソケットプログラミングからHTTPクライアントの核心へ</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            本プレゼンテーションでは、Go言語を用いて低レベルのTCPソケット通信から始め、HTTP/1.1クライアントの段階的な実装、mTLSによるセキュア化、そしてプロトコルアップグレードやJSON-RPCといった高度なトピックまでを探求します。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: TCPソケット通信 -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="1">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="network" class="w-6 h-6 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 1: TCPソケット通信</h2>
+          </div>
+          <div class="space-y-4">
+            <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                <p class="text-gray-700">HTTP通信の最も基本的な要素は、TCPソケットを介したデータのやり取りです。Go言語の `net` パッケージを使い、サーバーに接続し、確立されたコネクションを通じてリクエストを送信し、レスポンスを受信します。</p>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                 <div class="code-block"><pre><code>package main
+
+import (
+	"bufio"
+	"fmt"
+	"net"
+)
+
+func main() {
+	conn, err := net.Dial("tcp", "example.com:80")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// HTTPリクエストを送信
+	fmt.Fprintf(conn, "GET / HTTP/1.0\r\nHost: example.com\r\n\r\n")
+
+	// レスポンスを読み取り、標準出力へ出力
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+}</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド3: HTTPリクエスト/レスポンス -->
+      <div class="slide bg-gradient-to-br from-pink-50 to-blue-100" data-slide="2">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="file-text" class="w-6 h-6 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 2: HTTPリクエストとレスポンスの解析</h2>
+          </div>
+          <p class="text-gray-700 mb-4">`net/http`パッケージの`ReadResponse`や`Request.Write`を使うと、手動でテキストを組み立てる代わりに、構造化された方法でリクエスト送信とレスポンス解析が可能です。</p>
+          <div class="bg-white/80 p-6 rounded-xl shadow-lg">
+            <div class="code-block"><pre><code>package main
+
+import (
+	"bufio"
+	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
+)
+
+func main() {
+	conn, err := net.Dial("tcp", "example.com:80")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// リクエストを作成して送信
+	request, _ := http.NewRequest("GET", "http://example.com", nil)
+	request.Write(conn)
+
+	// レスポンスを読み取り
+	reader := bufio.NewReader(conn)
+	response, err := http.ReadResponse(reader, request)
+	if err != nil {
+		panic(err)
+	}
+	defer response.Body.Close()
+
+	// ヘッダーとボディを表示
+	fmt.Println(response.Status)
+	body, _ := ioutil.ReadAll(response.Body)
+	fmt.Println(string(body))
+}</code></pre></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド4: Keep-Aliveとチャンク形式の実装 (改訂) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="3">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="link" class="w-6 h-6 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 3: Keep-Alive & チャンク形式クライアント</h2>
+          </div>
+          <div class="pt-6">
+            <p class="text-gray-700 mb-4">Keep-Alive接続でチャンク形式のレスポンスを正しく処理するクライアントの完全な実装です。レスポンスヘッダーを解析し、`Transfer-Encoding: chunked` であることを確認してからボディを読み取ります。</p>
+            <div class="bg-white/90 p-4 rounded-xl shadow-sm">
+              <div class="code-block"><pre><code>package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+func main() {
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+	conn, err := dialer.Dial("tcp", "localhost:8888")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	request, _ := http.NewRequest("GET", "http://localhost:8888/chunked", nil)
+	err = request.Write(conn)
+	if err != nil {
+		panic(err)
+	}
+
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, request)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.TransferEncoding[0] != "chunked" {
+		panic("wrong transfer encoding")
+	}
+
+	for {
+		// サイズを取得
+		sizeStr, err := reader.ReadBytes('\n')
+		if err == io.EOF {
+			break
+		}
+		// 16進数のサイズをパース
+		size, err := strconv.ParseInt(string(sizeStr[:len(sizeStr)-2]), 16, 64)
+		if size == 0 {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		// サイズ数分バッファを確保して読み込み
+		line := make([]byte, int(size))
+		io.ReadFull(reader, line)
+		reader.Discard(2) // CRLFを読み飛ばす
+		fmt.Printf("Received chunk: %s\n", string(line))
+	}
+}</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド5: HTTPSへの対応 (改訂) -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-violet-100"><i data-lucide="lock" class="w-6 h-6 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 4: HTTPSへの対応</h2>
+          </div>
+          <div class="pt-6">
+            <p class="text-gray-700 mb-4">セキュアな通信のためTLS上でHTTPを動作させます。開発環境では自己署名証明書を使うことが多いため、クライアント側でその証明書を発行した認証局(CA)を信頼するよう設定するのが実践的です。</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-2">推奨: 自己署名CAを信頼する</h3>
+                    <p class="text-sm mb-2 text-gray-600">`tls.Config`の`RootCAs`に、信頼するCA証明書のプールを設定します。これにより、そのCAが署名したサーバー証明書を正しく検証できます。</p>
+                    <div class="code-block"><pre><code>package main
+
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	// CA証明書を読み込む
+	caCert, err := os.ReadFile("ca.crt")
+	if err != nil {
+		panic(err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	// TLS設定を作成
+	tlsConfig := &tls.Config{
+		RootCAs: caCertPool,
+	}
+
+	// カスタムTLS設定を持つクライアントを作成
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	}
+
+	resp, err := client.Get("https://localhost:8443")
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	fmt.Println(resp.Status)
+}</code></pre></div>
+                </div>
+                <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-2">非推奨: 証明書検証の無効化</h3>
+                    <p class="text-sm mb-2 text-gray-600">`InsecureSkipVerify: true`は、中間者攻撃のリスクがあるため、テスト環境での一時的な利用に留めるべき「最後の手段」です。</p>
+                    <div class="code-block"><pre><code>// 危険な設定
+tlsConfig := &tls.Config{
+    InsecureSkipVerify: true,
+}
+// ...
+client := &http.Client{
+    Transport: &http.Transport{
+        TLSClientConfig: tlsConfig,
+    },
+}</code></pre></div>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド6: mTLSの実装 -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-amber-100"><i data-lucide="shield-check" class="w-6 h-6 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 5: mTLS (相互TLS)の実装</h2>
+          </div>
+          <div class="pt-6">
+              <p class="text-gray-700 mb-4">mTLSはサーバー・クライアントが相互に証明書を提示し認証します。`tls.Config`にクライアント証明書(`Certificates`)とサーバーを検証するためのCA(`RootCAs`)の両方を設定します。</p>
+              <div class="bg-white/90 rounded-xl shadow-md overflow-hidden">
+                  <div class="code-block"><pre><code>// クライアント証明書と鍵をロード
+cert, err := tls.LoadX509KeyPair("client.crt", "client.key")
+if err != nil {
+    panic(err)
+}
+
+// サーバー検証用のCA証明書をロード
+caCert, err := os.ReadFile("ca.crt")
+if err != nil {
+    panic(err)
+}
+caCertPool := x509.NewCertPool()
+caCertPool.AppendCertsFromPEM(caCert)
+
+// mTLS用のtls.Config
+config := &tls.Config{
+    Certificates: []tls.Certificate{cert},
+    RootCAs:      caCertPool,
+}
+
+client := &http.Client{
+	Transport: &http.Transport{
+		TLSClientConfig: config,
+	},
+}
+// ... client.Get(...)</code></pre></div>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド7: プロトコルアップグレード: サーバー実装 (改訂) -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="6">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="server" class="w-6 h-6 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 6-1: プロトコルアップグレード (サーバー側)</h2>
+          </div>
+          <div class="pt-6">
+            <p class="text-gray-700 mb-4">サーバーは`Upgrade`ヘッダーを解釈し、`101 Switching Protocols`レスポンスを返します。その後、`http.ResponseController`の`Hijack()`メソッドでTCPコネクションを乗っ取り、カスタムプロトコルでの通信を開始します。</p>
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <div class="code-block"><pre><code>package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"time"
+)
+
+// Upgradeリクエストを処理するハンドラ
+func handlerUpgrade(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("Connection") != "Upgrade" || r.Header.Get("Upgrade") != "MyProtocol" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	log.Println("Upgrade to MyProtocol")
+
+	// コネクションをハイジャック
+	c := http.NewResponseController(w)
+	conn, rw, err := c.Hijack()
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// 101レスポンスを手動で書き込み
+	response := http.Response{
+		StatusCode: http.StatusSwitchingProtocols,
+		Header:     make(http.Header),
+	}
+	response.Header.Set("Upgrade", "MyProtocol")
+	response.Header.Set("Connection", "Upgrade")
+	response.Write(conn)
+
+	// カスタムプロトコルでの双方向通信
+	for i := 1; i <= 10; i++ {
+		fmt.Fprintf(rw, "%d\n", i)
+		rw.Flush()
+		log.Printf("Sent: %d", i)
+		
+		recv, err := rw.ReadBytes('\n')
+		if err == io.EOF {
+			break
+		}
+		log.Printf("Received: %s", string(recv))
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func main() {
+	http.HandleFunc("/upgrade", handlerUpgrade)
+	log.Println("Start server on :8888")
+	http.ListenAndServe(":8888", nil)
+}</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド8: プロトコルアップグレード: クライアント実装 (改訂) -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="7">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="terminal" class="w-6 h-6 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 6-2: プロトコルアップグレード (クライアント側)</h2>
+          </div>
+          <div class="pt-6">
+            <p class="text-gray-700 mb-4">クライアントは低レベルのTCPソケットを直接操作し、`Upgrade`ヘッダーを含むリクエストを送信します。`101`レスポンスを確認後、乗っ取られたコネクションで双方向通信を開始します。</p>
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <div class="code-block"><pre><code>package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
+	"log"
+	"net"
+	"net/http"
+)
+
+func main() {
+	conn, err := net.Dial("tcp", "localhost:8888")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// Upgradeリクエストを送信
+	request, _ := http.NewRequest("GET", "http://localhost:8888/upgrade", nil)
+	request.Header.Set("Connection", "Upgrade")
+	request.Header.Set("Upgrade", "MyProtocol")
+	err = request.Write(conn)
+	if err != nil {
+		panic(err)
+	}
+
+	// 101レスポンスを読み取り
+	reader := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(reader, request)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("Status:", resp.Status)
+
+	// サーバーが101を返した場合のみ双方向通信へ
+	if resp.StatusCode == http.StatusSwitchingProtocols {
+		counter := 10
+		for {
+			data, err := reader.ReadBytes('\n')
+			if err == io.EOF {
+				break
+			}
+			log.Printf("<- %s", string(bytes.TrimSpace(data)))
+			fmt.Fprintf(conn, "%d\n", counter)
+			log.Printf("-> %d", counter)
+			counter--
+			if counter < 0 {
+				break
+			}
+		}
+	}
+}</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド9: JSON-RPCの実装 (改訂) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="8">
+        <div class="scrollable-container max-w-6xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-sky-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-sky-100"><i data-lucide="code-2" class="w-6 h-6 text-sky-600"></i></div>
+            <h2 class="text-4xl font-bold">Step 7: JSON-RPCの実装</h2>
+          </div>
+          <div class="pt-6">
+            <p class="text-gray-700 mb-4">`net/rpc/jsonrpc`パッケージは、TCP上でJSON-RPC通信を行うためのサーバーとクライアントのコーデックを提供します。クライアントコードはサーバーコードと対になって初めて機能します。</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold mb-2">サーバーサイド実装</h3>
+                <p class="text-xs text-gray-600 mb-2">公開するメソッドを持つ型を定義し、RPCサーバーに登録します。</p>
+                <div class="code-block"><pre><code>package main
+import (
+	"log"
+	"net"
+	"net/rpc"
+	"net/rpc/jsonrpc"
+)
+type Calculator int
+type Args struct{ A, B int }
+
+func (c *Calculator) Multiply(args Args, result *int) error {
+	log.Printf("Multiply called: %d, %d", args.A, args.B)
+	*result = args.A * args.B
+	return nil
+}
+func main() {
+	calculator := new(Calculator)
+	server := rpc.NewServer()
+	server.Register(calculator)
+	
+	listener, err := net.Listen("tcp", ":8889")
+	if err != nil {
+		panic(err)
+	}
+	log.Println("Start JSON-RPC server on :8889")
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			panic(err)
+		}
+		go server.ServeCodec(jsonrpc.NewServerCodec(conn))
+	}
+}</code></pre></div>
+              </div>
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold mb-2">クライアントサイド実装</h3>
+                 <p class="text-xs text-gray-600 mb-2">サーバーに接続し、`client.Call`でリモートメソッドを呼び出します。</p>
+                <div class="code-block"><pre><code>package main
+
+import (
+	"log"
+	"net/rpc/jsonrpc"
+)
+
+type Args struct{ A, B int }
+
+func main() {
+	client, err := jsonrpc.Dial("tcp", "localhost:8889")
+	if err != nil {
+		panic(err)
+	}
+	defer client.Close()
+
+	var result int
+	args := &Args{A: 10, B: 20}
+	err = client.Call("Calculator.Multiply", args, &result)
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("10 x 20 = %d\n", result)
+}</code></pre></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド10: まとめ -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="9">
+        <div class="max-w-4xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-indigo-100"><i data-lucide="check-circle" class="w-6 h-6 text-indigo-600"></i></div>
+            <h2 class="text-4xl font-bold">まとめ</h2>
+          </div>
+          <div class="space-y-4">
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <p class="text-gray-700">本プレゼンテーションでは、Go言語を用いてTCPソケットレベルの通信から始め、HTTP/1.1クライアントの機能を段階的に実装してきました。Keep-Alive、チャンク形式、HTTPS、mTLSといった核心的な概念から、プロトコルアップグレードやJSON-RPCといった応用までを探求しました。</p>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <p class="text-gray-700">低レベルな実装を通してプロトコルの動作原理を深く理解し、`net/http`パッケージがいかに強力で便利な抽象化を提供しているかを学びました。これらの知識は、パフォーマンスチューニングやトラブルシューティング、そしてより高度なネットワークアプリケーションを構築する上で不可欠な基盤となります。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">10</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          const scrollable = slide.querySelector('.scrollable-container');
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            if (scrollable) scrollable.scrollTop = 0;
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

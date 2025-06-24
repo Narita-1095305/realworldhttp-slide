@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第9章 HTTP/2時代の新しいユースケース (改訂版)</title>
+  <meta name="description" content="Webの進化とブラウザを超えた通信の世界を探るプレゼンテーション">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      word-wrap: normal;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">第9章 HTTP/2時代の新しいユースケース</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">Webの進化とブラウザを超えた通信の世界</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            検索エンジンやソーシャルメディアが理解するプロトコルを中心に、HTTP/2時代の新技術を解説します。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: レスポンシブデザイン1 -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="1">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="smartphone" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">レスポンシブデザイン (1/2)</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500">
+                <h3 class="text-2xl font-semibold text-emerald-700 mb-3">CSSピクセルとは？</h3>
+                <p class="mb-2">デバイスの物理的な解像度（物理解像度）とは別に、CSSがレイアウト計算に使う<strong class="font-bold">論理的な解像度</strong>のこと。</p>
+                <p>例: iPhone 4は物理640x960pxですが、論理的には320x480pxとして扱われます。</p>
+              </div>
+              <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500">
+                <h3 class="text-2xl font-semibold text-emerald-700 mb-3">デバイスピクセルレシオ</h3>
+                <p class="mb-2">物理解像度と論理解像度の比率です。高解像度ディスプレイほど値が大きくなります。</p>
+                <p>例: Nexus 6Pはレシオが<strong class="font-bold">3.5</strong>。つまり、1つのCSSピクセルが縦横3.5個の物理ピクセルで描画されます。</p>
+              </div>
+            </div>
+            <div class="mt-6 bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500">
+              <h3 class="text-2xl font-semibold text-emerald-700 mb-3">JavaScriptでの確認</h3>
+              <p class="mb-3">ブラウザの開発者ツールで以下のコードを実行すると、現在のウィンドウサイズとピクセルレシオを確認できます。</p>
+              <div class="code-block">
+<pre><code>// 実行例 (Nexus 6Pの場合)
+> window.innerWidth
+412
+> window.innerHeight
+732
+> window.devicePixelRatio
+3.5</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド3: レスポンシブデザイン2 -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="2">
+        <div class="scrollable-container max-w-5xl mx-auto">
+           <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="smartphone" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">レスポンシブデザイン (2/2)</h2>
+          </div>
+          <div class="space-y-6 pt-6">
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">CSSメディアクエリ</h3>
+                <p class="mb-2">画面幅に応じてスタイルを切り替えます。</p>
+                <div class="code-block">
+<pre><code>/* デスクトップ向け */
+@media screen and (min-width: 480px) {
+  .text { color: blue; }
+}
+
+/* モバイル向け */
+@media screen and (max-width: 479px) {
+  .text { color: red; }
+}</code></pre>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">viewport設定</h3>
+                <p class="mb-2">論理ピクセル幅をデバイスの幅に合わせるためのHTMLのmetaタグです。</p>
+                <div class="code-block">
+<pre><code>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</code></pre>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">複数画像の出し分け</h3>
+                <p class="mb-2">デバイスピクセルレシオに応じて最適な解像度の画像を表示します。</p>
+                <div class="code-block">
+<pre><code>&lt;img src="photo.png" srcset="photo@2x.png 2x, photo@3x.png 3x"&gt;</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド4: 新しい画像フォーマット -->
+      <div class="slide bg-gradient-to-br from-cyan-50 to-blue-100" data-slide="3">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-cyan-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-cyan-100"><i data-lucide="image" class="w-8 h-8 text-cyan-600"></i></div>
+            <h2 class="text-4xl font-bold">新しい画像フォーマット</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm mb-4">
+                <p>Webサイトのデータ量で大きな割合を占めるのが画像です。圧縮効率の高い新しいフォーマットを選ぶことで、パフォーマンスを大きく改善できます。</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-200">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">ファイル種別</th>
+                            <th scope="col" class="px-6 py-3">色数</th>
+                            <th scope="col" class="px-6 py-3">圧縮</th>
+                            <th scope="col" class="px-6 py-3">透過</th>
+                            <th scope="col" class="px-6 py-3">アニメ</th>
+                            <th scope="col" class="px-6 py-3">HDR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="bg-white border-b"><th scope="row" class="px-6 py-4 font-medium text-gray-900">JPEG</th><td class="px-6 py-4">フルカラー</td><td class="px-6 py-4">非可逆</td><td class="px-6 py-4">×</td><td class="px-6 py-4">×</td><td class="px-6 py-4">×</td></tr>
+                        <tr class="bg-white border-b"><th scope="row" class="px-6 py-4 font-medium text-gray-900">PNG</th><td class="px-6 py-4">フルカラー</td><td class="px-6 py-4">可逆</td><td class="px-6 py-4">○</td><td class="px-6 py-4">APNG</td><td class="px-6 py-4">×</td></tr>
+                        <tr class="bg-white border-b"><th scope="row" class="px-6 py-4 font-medium text-gray-900">GIF</th><td class="px-6 py-4">256色</td><td class="px-6 py-4">可逆</td><td class="px-6 py-4">1bitのみ</td><td class="px-6 py-4">○</td><td class="px-6 py-4">×</td></tr>
+                        <tr class="bg-green-50 border-b"><th scope="row" class="px-6 py-4 font-medium text-green-900">WebP</th><td class="px-6 py-4">フルカラー</td><td class="px-6 py-4">両対応</td><td class="px-6 py-4">○</td><td class="px-6 py-4">○</td><td class="px-6 py-4">×</td></tr>
+                        <tr class="bg-green-50 border-b"><th scope="row" class="px-6 py-4 font-medium text-green-900">AVIF</th><td class="px-6 py-4">フルカラー</td><td class="px-6 py-4">両対応</td><td class="px-6 py-4">○</td><td class="px-6 py-4">○</td><td class="px-6 py-4">○</td></tr>
+                        <tr class="bg-green-50 border-b"><th scope="row" class="px-6 py-4 font-medium text-green-900">HEIF</th><td class="px-6 py-4">フルカラー</td><td class="px-6 py-4">両対応</td><td class="px-6 py-4">○</td><td class="px-6 py-4">○</td><td class="px-6 py-4">○</td></tr>
+                    </tbody>
+                </table>
+            </div>
+             <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-4 rounded-lg shadow"><h3 class="font-bold text-cyan-800">WebP</h3><p class="text-sm mt-1">Googleが開発。JPEG/PNG比で約2/3のファイルサイズ。非可逆・可逆・透過・アニメーション全てに対応する多機能フォーマット。</p></div>
+                <div class="bg-white p-4 rounded-lg shadow"><h3 class="font-bold text-cyan-800">AVIF</h3><p class="text-sm mt-1">AV1動画コーデックベース。WebPよりさらに圧縮率が高く、HDRにも対応。現在主要ブラウザでサポートされている。</p></div>
+                <div class="bg-white p-4 rounded-lg shadow"><h3 class="font-bold text-cyan-800">HEIF</h3><p class="text-sm mt-1">H.265(HEVC)動画コーデックベース。iOSの標準フォーマット。AVIFと同等の圧縮率を誇るが、Webブラウザでの対応は限定的。</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド5: セマンティックウェブ -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="4">
+          <div class="scrollable-container max-w-4xl mx-auto">
+              <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
+                  <div class="p-3 rounded-full bg-purple-100"><i data-lucide="brain-circuit" class="w-8 h-8 text-purple-600"></i></div>
+                  <h2 class="text-4xl font-bold">セマンティックウェブ</h2>
+              </div>
+              <div class="pt-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-md mb-6">
+                    <h3 class="text-2xl font-semibold text-indigo-700 mb-3">定義</h3>
+                    <p>Webの提唱者ティム・バーナーズ・リーが構想した、コンピュータがWebページの意味（セマンティクス）を理解し、処理できるようにする仕組み。</p>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-md">
+                    <h3 class="text-2xl font-semibold text-indigo-700 mb-3">現在の実現方法</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h4 class="font-bold">1. ボキャブラリーの利用</h4>
+                            <p class="text-sm">用途ごとに決められた語彙（例: <a href="https://schema.org" target="_blank" class="text-blue-600 hover:underline">schema.org</a>）をHTMLに埋め込み、機械に意味を伝える。</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h4 class="font-bold">2. 機械学習の活用</h4>
+                            <p class="text-sm">ChatGPTのようなAIが文脈から意味を推定し、構造化されていない情報も理解する。</p>
+                        </div>
+                    </div>
+                </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- スライド6: マイクロデータ -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="5">
+          <div class="scrollable-container max-w-5xl mx-auto">
+              <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+                  <div class="p-3 rounded-full bg-blue-100"><i data-lucide="code" class="w-8 h-8 text-blue-600"></i></div>
+                  <h2 class="text-4xl font-bold">マイクロデータ</h2>
+              </div>
+              <div class="pt-6">
+                  <div class="bg-white/90 p-4 rounded-xl shadow-md mb-4">
+                      <p>HTMLタグに属性を追加することで、セマンティックな情報を埋め込むための仕様です。</p>
+                      <ul class="list-disc list-inside mt-2 space-y-1">
+                          <li><code class="bg-gray-200 px-1 rounded">itemscope</code>: 意味の対象範囲を定義</li>
+                          <li><code class="bg-gray-200 px-1 rounded">itemtype</code>: schema.orgなどのボキャブラリーで型を定義</li>
+                          <li><code class="bg-gray-200 px-1 rounded">itemprop</code>: 個々のプロパティ（名前、説明など）を定義</li>
+                      </ul>
+                  </div>
+                  <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                      <h3 class="text-xl font-semibold text-blue-700 mb-2">schema.org の記述例</h3>
+                       <div class="code-block">
+<pre><code>&lt;div itemscope itemtype="http://schema.org/Person"&gt;
+  &lt;span itemprop="name"&gt;ジョージ・ブッシュ&lt;/span&gt;：
+  &lt;span itemprop="disambiguatingDescription"&gt;第41代アメリカ大統領&lt;/span&gt;
+  &lt;div itemprop="children" itemscope itemtype="http://schema.org/Person"&gt;
+    &lt;span itemprop="name"&gt;ジョージ・W・ブッシュ&lt;/span&gt;：
+    &lt;span itemprop="disambiguatingDescription"&gt;第43代アメリカ大統領&lt;/span&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      
+      <!-- スライド7: JSON-LD -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="6">
+          <div class="scrollable-container max-w-5xl mx-auto">
+              <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+                  <div class="p-3 rounded-full bg-amber-100"><i data-lucide="file-json" class="w-8 h-8 text-amber-600"></i></div>
+                  <h2 class="text-4xl font-bold">JSON-LD</h2>
+              </div>
+              <div class="pt-6">
+                  <div class="bg-white/90 p-4 rounded-xl shadow-md mb-4">
+                      <p>Googleが推奨する構造化データ形式。HTMLの見た目に影響を与えず、<code class="bg-gray-200 px-1 rounded">&lt;script&gt;</code>タグでJSONデータを埋め込めます。</p>
+                      <p class="mt-2">これにより、検索結果での表示がリッチになり、クリックされる前に多くの情報をユーザーに提供できます。</p>
+                  </div>
+                  <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                      <h3 class="text-xl font-semibold text-amber-700 mb-2">scriptタグでの埋め込み例</h3>
+                      <div class="code-block">
+<pre><code>&lt;script type="application/ld+json"&gt;
+{
+  "@context": "http://schema.org",
+  "@type": "Organization",
+  "url": "http://www.your-company-site.com",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+1-401-555-1212",
+    "contactType": "customer service"
+  }
+}
+&lt;/script&gt;</code></pre>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      
+      <!-- スライド8: RSS -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="7">
+          <div class="scrollable-container max-w-5xl mx-auto">
+              <div class="sticky-header bg-gradient-to-br from-blue-50 to-sky-100 flex items-center gap-4">
+                  <div class="p-3 rounded-full bg-sky-100"><i data-lucide="rss" class="w-8 h-8 text-sky-600"></i></div>
+                  <h2 class="text-4xl font-bold">RSS</h2>
+              </div>
+              <div class="pt-6">
+                <div class="bg-white/90 p-4 rounded-xl shadow-md mb-4">
+                    <p>RDF (Resource Description Framework) の成功例の一つ。ウェブサイトの更新履歴をまとめたXMLベースのフォーマットです。</p>
+                    <p class="mt-2">ユーザーはRSSリーダーを使うことで、複数のサイトの更新情報を効率的にチェックできます。</p>
+                </div>
+                <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold text-sky-700 mb-2">RSS 1.0 の実例コード</h3>
+                    <div class="code-block">
+<pre><code>&lt;rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dc="http://purl.org/dc/elements/1.1/"
+         xmlns="http://purl.org/rss/1.0/"&gt;
+  &lt;channel rdf:about="http://blog.shibu.jp/"&gt;
+    &lt;title&gt;Shibu's Diary&lt;/title&gt;
+    &lt;link&gt;http://blog.shibu.jp/&lt;/link&gt;
+    &lt;items&gt;
+      &lt;rdf:Seq&gt;
+        &lt;rdf:li rdf:resource="http://blog.shibu.jp/article/178099358.html"/&gt;
+      &lt;/rdf:Seq&gt;
+    &lt;/items&gt;
+  &lt;/channel&gt;
+  &lt;item rdf:about="http://blog.shibu.jp/article/178099358.html"&gt;
+    &lt;title&gt;passive な #kaneの話&lt;/title&gt;
+    &lt;description&gt;これはPySpa アドベントカレンダー2016の...&lt;/description&gt;
+    &lt;dc:creator&gt;@shibukawa&lt;/dc:creator&gt;
+    &lt;dc:date&gt;2016-12-20T01:20:30+09:00&lt;/dc:date&gt;
+  &lt;/item&gt;
+&lt;/rdf:RDF&gt;</code></pre>
+                    </div>
+                </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- スライド9: vCard -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="8">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-rose-100"><i data-lucide="contact" class="w-8 h-8 text-rose-600"></i></div>
+            <h2 class="text-4xl font-bold">vCard</h2>
+          </div>
+          <div class="pt-6">
+              <div class="bg-white/90 p-4 rounded-xl shadow-md mb-4">
+                <p>連絡先情報（名刺情報）を交換するための標準フォーマットです (RFC 6350)。MIMEタイプは <code class="bg-gray-200 px-1 rounded">text/vcard</code> です。</p>
+              </div>
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold text-rose-700 mb-2">vCardサンプル</h3>
+                <div class="code-block">
+<pre><code>BEGIN:VCARD
+VERSION:3.0
+N:渋川;よしき;;;
+TEL:(+81) 3-3356-5227
+ADR:;;四谷坂町12-22;新宿区;東京都;160-0002;日本
+END:VCARD</code></pre>
+                </div>
+                <div class="mt-4 bg-rose-50 border-l-4 border-rose-400 p-3 rounded">
+                    <h4 class="font-bold text-rose-800">実行結果</h4>
+                    <p class="text-rose-700 text-sm">この形式のファイル（.vcf）をデバイスで開くと、連絡先アプリが起動し、情報のインポートを促します。</p>
+                </div>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド10: iCalendar -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="9">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-violet-100"><i data-lucide="calendar-days" class="w-8 h-8 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">iCalendar</h2>
+          </div>
+          <div class="pt-6">
+              <div class="bg-white/90 p-4 rounded-xl shadow-md mb-4">
+                <p>スケジュール情報（予定）を交換するための標準フォーマットです (RFC 5545)。MIMEタイプは <code class="bg-gray-200 px-1 rounded">text/calendar</code> です。</p>
+              </div>
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold text-violet-700 mb-2">iCalendarサンプル</h3>
+                <div class="code-block">
+<pre><code>BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:20190713T000000Z
+DTEND:20190713T010000Z
+SUMMARY:GoConference '19 summer in Fukuoka
+DESCRIPTION:Go and Enjoy Fukuoka!
+LOCATION:Fukuoka Growth Next
+URL:https://fukuoka.gocon.jp/ja/
+END:VEVENT
+END:VCALENDAR</code></pre>
+                </div>
+                <div class="mt-4 bg-violet-50 border-l-4 border-violet-400 p-3 rounded">
+                    <h4 class="font-bold text-violet-800">実行結果</h4>
+                    <p class="text-violet-700 text-sm">この形式のファイル（.ics）をデバイスで開くと、カレンダーアプリが起動し、予定の追加を確認されます。</p>
+                </div>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド11: オープングラフプロトコル -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-blue-100" data-slide="10">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="share-2" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">オープングラフプロトコル (OGP)</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/90 p-4 rounded-xl shadow-md mb-4">
+              <p>Meta (旧Facebook) が開発。SNSなどでWebページのリンクが共有された際に、リッチな表示（タイトル、画像、説明文など）を実現するための仕組みです。</p>
+              <p class="mt-2">OGPを元にした<strong class="font-bold">Twitterカード</strong>もあり、両方を記述することで主要なSNSに対応できます。</p>
+            </div>
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <h3 class="text-lg font-semibold text-blue-700 mb-2">実践的な実装例 (Qiitaの場合)</h3>
+              <div class="code-block">
+<pre><code>&lt;html xmlns:og="http://ogp.me/ns#"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8" /&gt;
+  &lt;!-- Twitter Card --&gt;
+  &lt;meta name="twitter:card" content="summary" /&gt;
+  &lt;meta name="twitter:site" content="@Qiita" /&gt;
+  &lt;meta name="twitter:creator" content="@shibu_jp" /&gt;
+
+  &lt;!-- OGP (Facebook, Twitter共通) --&gt;
+  &lt;meta property="og:title" content="最速MVCフレームワーク Mithril.jsの速度の秘密 - Qiita" /&gt;
+  &lt;meta property="og:type" content="article" /&gt;
+  &lt;meta property="og:url" content="http://qiita.com/shibukawa/items/..." /&gt;
+  &lt;meta property="og:image" content="http://cdn.qiita.com/assets/qiita-fb.png" /&gt;
+  &lt;meta property="og:description" content="Mithril 0.2が本日リリースされました..." /&gt;
+  &lt;meta property="og:site_name" content="Qiita" /&gt;
+
+  &lt;!-- Facebook用 --&gt;
+  &lt;meta property="fb:admins" content="554524838" /&gt;
+&lt;/head&gt;
+&lt;/html&gt;</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド12: QRコード (新規) -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="11">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-gray-200"><i data-lucide="qr-code" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">QRコード: 物理世界との連携</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-gray-500">
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-3">QRコードとは？</h3>
+                    <p>デンソーウェーブが開発した2次元バーコード。大容量のデータを格納でき、誤り訂正機能も強力です。</p>
+                    <p class="mt-4">単なる文字列だけでなく、「スキーム」を解釈して特定のアプリを起動できます。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-gray-500">
+                    <h3 class="text-2xl font-semibold text-gray-700 mb-3">多様なユースケース</h3>
+                    <ul class="list-disc list-inside space-y-2 mt-2">
+                        <li><code class="bg-gray-200 px-1 rounded">https://...</code>: Webサイトを開く</li>
+                        <li><code class="bg-gray-200 px-1 rounded">mailto:...</code>: メーラーを起動</li>
+                        <li><code class="bg-gray-200 px-1 rounded">tel:...</code>: 電話を発信</li>
+                        <li><code class="bg-gray-200 px-1 rounded">WIFI:...</code>: Wi-Fiに接続</li>
+                        <li><code class="bg-gray-200 px-1 rounded">BEGIN:VCARD...</code>: 連絡先を登録</li>
+                        <li><code class="bg-gray-200 px-1 rounded">BEGIN:VEVENT...</code>: カレンダーに予定を登録</li>
+                    </ul>
+                </div>
+            </div>
+             <div class="mt-6 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded-lg">
+                  <h4 class="font-bold text-yellow-800">セキュリティ上の注意</h4>
+                  <p class="text-sm text-yellow-700">URLを隠蔽できるためフィッシングに悪用される危険性も。安易に不明なQRコードを読み取らないよう注意が必要です。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド13: モバイルアプリ連携 (新規) -->
+      <div class="slide bg-gradient-to-br from-teal-50 to-cyan-100" data-slide="12">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-teal-50 to-cyan-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-cyan-100"><i data-lucide="link" class="w-8 h-8 text-cyan-600"></i></div>
+            <h2 class="text-4xl font-bold">DeepLink: Webとアプリの連携</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/90 p-6 rounded-xl shadow-md mb-6">
+                <h3 class="text-2xl font-semibold text-teal-800 mb-3">DeepLinkとは？</h3>
+                <p>特定のURL（リンク）をトリガーに、Webサイトではなく<strong class="font-bold">ネイティブアプリの特定の画面を直接開く</strong>仕組みの総称です。</p>
+                <ul class="list-disc list-inside mt-2 text-sm">
+                    <li>iOS: <strong class="font-bold">Universal Link</strong></li>
+                    <li>Android: <strong class="font-bold">intentフィルター</strong> (App Links)</li>
+                </ul>
+                <p class="mt-2">これにより、Webとアプリをシームレスに遷移させ、ユーザー体験を向上させます。</p>
+            </div>
+            <div class="bg-white/90 p-6 rounded-xl shadow-md">
+                <h3 class="text-2xl font-semibold text-teal-800 mb-3">X (旧Twitter) の例</h3>
+                <p class="mb-2">以下の形式のURLにアクセスすると、Xのアプリがインストールされていれば投稿画面が直接開きます。</p>
+                <div class="code-block">
+<pre><code>https://twitter.com/intent/tweet?
+  url=&lt;共有したいURL&gt;
+  &text=&lt;本文&gt;
+  &hashtags=&lt;ハッシュタグ&gt;</code></pre>
+                </div>
+                <p class="mt-3 text-sm">アプリがなければ、通常のWebサイトの投稿ページが表示されるフォールバックも用意されています。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド14: HLS -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="13">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-rose-100"><i data-lucide="film" class="w-8 h-8 text-rose-600"></i></div>
+            <h2 class="text-4xl font-bold">HLS (HTTPライブストリーミング)</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <p class="mb-2">Appleが2009年に提唱した動画配信技術 (RFC 8216)。</p>
+                <h4 class="font-semibold text-lg text-rose-700 mt-3">特徴:</h4>
+                <ul class="list-disc list-inside mt-1 space-y-1 text-sm">
+                  <li>リアルタイム中継に対応</li>
+                  <li>回線状況に合わせて解像度を自動選択</li>
+                  <li>字幕や多言語音声の切り替えが可能</li>
+                </ul>
+              </div>
+              <div class="bg-white/90 p-4 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold text-rose-700 mb-2">HTMLでの利用例</h3>
+                <p class="text-sm mb-2">.m3u8 というプレイリストファイルを指定します。</p>
+                <div class="code-block">
+<pre><code>&lt;video controls autoplay&gt;
+  &lt;source src="http://example.com/video.m3u8"/&gt;
+  &lt;source src="/fallback.ogv" type='video/ogg'&gt;
+&lt;/video&gt;</code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド15: HLS .m3u8ファイル -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="14">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-rose-100"><i data-lucide="file-text" class="w-8 h-8 text-rose-600"></i></div>
+            <h2 class="text-4xl font-bold">HLS: マスタープレイリスト</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <p class="mb-2">解像度ごとや字幕・音声ごとのプレイリスト(.m3u8)をまとめた、マスターとなるプレイリストです。</p>
+              <div class="code-block">
+<pre><code>#EXTM3U
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",URI="subtitles/eng/prog_index.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=1193108,CODECS="avc1.77.30,mp4a.40.2",RESOLUTION=640x266
+0640/0640.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=6807315,CODECS="avc1.580028,mp4a.40.2",RESOLUTION=1920x800
+1920/1920.m3u8</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド16: HLS 動画セグメントリスト -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="15">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-rose-100"><i data-lucide="list-video" class="w-8 h-8 text-rose-600"></i></div>
+            <h2 class="text-4xl font-bold">HLS: 動画セグメントリスト</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <p class="mb-2">マスタープレイリストから参照される、特定の解像度の動画を構成するセグメントファイル（.ts）の一覧です。</p>
+              <div class="code-block">
+<pre><code>#EXTM3U
+#EXT-X-TARGETDURATION:13
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXTINF:12.012,
+0640_00001.ts
+#EXTINF:12.012,
+0640_00002.ts
+...</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド17: HLS 字幕ファイル -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="16">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-rose-100"><i data-lucide="captions" class="w-8 h-8 text-rose-600"></i></div>
+            <h2 class="text-4xl font-bold">HLS: 字幕ファイル (WebVTT)</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <p class="mb-2">W3Cのウェブ標準でもあるWebVTT形式の字幕ファイルです。タイムスタンプと表示するテキストで構成されます。</p>
+              <div class="code-block">
+<pre><code>WEBVTT
+X-TIMESTAMP-MAP-MPEGTS:181083,LOCAL:00:00:00.000
+
+00:00:21.436 --> 00:00:22.216
+&gt;&gt; Is this thing on?
+
+00:00:26.366 --> 00:00:27.116
+Good afternoon.
+</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド18: MPEG-DASH 1/2 (改訂) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="17">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="clapperboard" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">MPEG-DASH (1/2)</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/90 p-4 rounded-xl shadow-md mb-4">
+              <p>MPEGコンソーシアムによる動画配信の国際標準 (ISO/IEC 23001-6)。YouTubeなど多くのサービスで採用されています。</p>
+              <p class="mt-2">マニフェストファイル (MPD, Media Presentation Description) というXMLで配信内容を記述します。</p>
+            </div>
+            <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <h3 class="text-lg font-semibold text-blue-700 mb-2">MPDファイルの階層構造</h3>
+              <ul class="list-decimal list-inside space-y-1 text-sm">
+                <li><strong class="font-semibold">Period:</strong> チャプターや広告など、時間的な区切り。</li>
+                <li><strong class="font-semibold">AdaptationSet:</strong> 同一コンテンツの代替セット（例: 映像、音声、字幕）。</li>
+                <li><strong class="font-semibold">Representation:</strong> 具体的なメディアストリーム（例: 高解像度映像、低解像度映像、英語音声）。</li>
+                <li><strong class="font-semibold">Segment:</strong> 動画や音声の断片ファイル。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド19: MPEG-DASH 2/2 (改訂) -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-indigo-100" data-slide="18">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="clapperboard" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">MPEG-DASH (2/2)</h2>
+          </div>
+          <div class="pt-6">
+             <div class="bg-white/90 p-4 rounded-xl shadow-md">
+              <h3 class="text-lg font-semibold text-blue-700 mb-2">MPDファイル詳細コード例</h3>
+              <p class="text-sm mb-2">映像と音声の<code>AdaptationSet</code>が分かれ、それぞれに帯域ごとの<code>Representation</code>が含まれる構造を確認できます。</p>
+              <div class="code-block">
+<pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;MPD xmlns="urn:mpeg:dash:schema:mpd:2011" profiles="..." type="static" ...&gt;
+  &lt;Period&gt;
+    &lt;!-- 音声トラック --&gt;
+    &lt;AdaptationSet mimeType="audio/webm" ...&gt;
+      &lt;Representation id="171" codecs="vorbis" bandwidth="129553"&gt;
+        &lt;BaseURL&gt;audio_128k.webm&lt;/BaseURL&gt;
+        &lt;SegmentBase indexRange="...-..."/&gt;
+      &lt;/Representation&gt;
+      &lt;Representation id="172" codecs="vorbis" bandwidth="188041"&gt;
+        &lt;BaseURL&gt;audio_192k.webm&lt;/BaseURL&gt;
+        &lt;SegmentBase indexRange="...-..."/&gt;
+      &lt;/Representation&gt;
+    &lt;/AdaptationSet&gt;
+    
+    &lt;!-- 映像トラック --&gt;
+    &lt;AdaptationSet mimeType="video/webm" ...&gt;
+      &lt;Representation id="245" codecs="vp9" width="854" height="480" bandwidth="1431499"&gt;
+        &lt;BaseURL&gt;video_480p.webm&lt;/BaseURL&gt;
+        &lt;SegmentBase indexRange="...-..."/&gt;
+      &lt;/Representation&gt;
+      &lt;Representation id="247" codecs="vp9" width="1280" height="720" bandwidth="3915200"&gt;
+        &lt;BaseURL&gt;video_720p.webm&lt;/BaseURL&gt;
+        &lt;SegmentBase indexRange="...-..."/&gt;
+      &lt;/Representation&gt;
+    &lt;/AdaptationSet&gt;
+  &lt;/Period&gt;
+&lt;/MPD&gt;</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド20: まとめ -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="19">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="check-circle" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">まとめ</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>レスポンシブデザイン:</strong> 複数解像度のスクリーンに対応する技術。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>セマンティックウェブ:</strong> 構造化データで検索結果をリッチにする。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>OGP:</strong> SNSでの表示を豊かにするメタ情報。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>QRコード:</strong> URLだけでなく多様な情報を格納・連携。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>動画ストリーミング:</strong> HTTP基盤で大容量動画を効率的に配信。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>アプリ連携:</strong> DeepLinkでWebとアプリをシームレスに繋ぐ。</div>
+            </div>
+             <div class="mt-6 bg-white/80 p-6 rounded-xl shadow-md">
+                  <h3 class="text-2xl font-semibold text-indigo-700 mb-3 text-center">結論</h3>
+                  <p class="text-center">これらの技術は、もはや人間だけがWebを見るのではなく、<strong class="font-bold">機械が情報を理解し、処理する</strong>ことで、最終的に<strong class="font-bold">人間のユーザー体験を向上させる</strong>ために進化しています。</p>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">20</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            // スクロール可能なコンテナを探してスクロール位置をリセット
+            const scrollable = slide.querySelector('.scrollable-container');
+            if (scrollable) {
+              scrollable.scrollTop = 0;
+            }
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

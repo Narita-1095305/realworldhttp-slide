@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第11章 クライアント視点で見るRESTful API</title>
+  <meta name="description" content="RESTの基本原則から、Go言語による実践的なAPIクライアント実装までを解説">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">第11章 クライアント視点で見るRESTful API</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">GoによるAPIクライアント実装</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            本章では、RESTful APIの基本原則をクライアント視点で解説し、Go言語を用いて実際にAPIを操作する方法を学びます。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: RESTful APIとは (修正版) -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+         <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="server" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">RESTful APIとは</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>HTTPプロトコルのセマンティクス（意味）に従うことで、そのメリットを最大限に享受することを目的としたAPI設計思想。Roy Fielding氏の論文で提唱されました。</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                  <h3 class="text-xl font-semibold text-indigo-700 mb-2">主な特性</h3>
+                  <ul class="list-disc list-inside space-y-2 text-sm">
+                    <li>URLは「リソース」の場所を表す（名詞で構成）。</li>
+                    <li>HTTPメソッド（GET, POST等）でリソースを操作する。</li>
+                    <li>ステートレスであり、各リクエストは独立している。</li>
+                    <li>ステータスコードで処理結果を通知する。</li>
+                  </ul>
+                </div>
+                <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                  <h3 class="text-xl font-semibold text-indigo-700 mb-2">普及の背景</h3>
+                  <p class="text-sm">2005年頃から、複数のWebサービスを連携させる「<strong class="font-bold">マッシュアップ</strong>」が流行。これにより、HTTPをベースにしたサーバー間通信が広く利用されるようになりました。</p>
+                  <p class="text-sm mt-2">Googleのデザインガイドによれば、<strong class="font-bold text-red-600">2010年時点で世界の公開APIの74%がRESTful API</strong>であったとされています。</p>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド3: URL設計とメソッドの原則 (修正版) -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="2">
+         <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="link" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">URL設計とメソッドの原則</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">べき等性 (Idempotency)</h3>
+                <p>「何度実行しても結果が変わらない」という性質。RESTful APIではこの原則に従うべきです。</p>
+                 <ul class="list-disc list-inside space-y-1 text-sm mt-2">
+                    <li><strong>安全 (Safe) かつべき等:</strong> GET, HEAD, OPTIONS</li>
+                    <li><strong>べき等だが安全ではない:</strong> PUT, DELETE</li>
+                    <li><strong>べき等ではない:</strong> POST, PATCH</li>
+                </ul>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">オーバーロードPOST</h3>
+                <p>HTMLのフォームがGETとPOSTしかサポートしていないという制約から、実際にはPOSTメソッドを使い、リクエスト内部で本来のメソッド（PUTやDELETEなど）を伝える設計パターンが存在します。</p>
+                 <div class="code-block mt-2">
+<pre><code># GoogleのAPIデザインガイドにおけるカスタムメソッドの例
+POST /v3/events:clear</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド4: Web APIとトランザクション (修正版) -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="3">
+         <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="database-zap" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">Web APIとトランザクション</h2>
+          </div>
+          <div class="pt-6 space-y-4">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>RESTはステートレスなため、リレーショナルデータベースのような厳密なトランザクション機構を持ちません。複数の操作をまとめるには、いくつかのアプローチがあります。</p>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-indigo-700">主なアプローチ</h3>
+                 <ul class="list-disc list-inside space-y-2 text-sm">
+                    <li><strong>バッチ処理:</strong> `multipart/mixed`を使い、1つのリクエストに複数の操作をまとめる。</li>
+                    <li><strong>サーガ (Saga) パターン:</strong> 複数の小さなトランザクションに分割し、失敗時は補償トランザクションで取り消す。</li>
+                    <li><strong>連続呼び出し:</strong> Redisの`MULTI`命令のように、サーバー側で複数命令をアトミックに実行する口を用意する。</li>
+                    <li><strong>後からチェック:</strong> GoogleのSRE本で紹介されているように、定期的なバッチ処理でデータの一貫性を検証・修正する。</li>
+                </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド5: HATEOAS -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="link-2" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">HATEOAS</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p><strong>H</strong>ypermedia <strong>A</strong>s <strong>T</strong>he <strong>E</strong>ngine <strong>O</strong>f <strong>A</strong>pplication <strong>S</strong>tateの略。REST APIの成熟度レベルの最上位に位置します。</p>
+                <p class="mt-2">レスポンスに、そのリソースに対して実行可能な操作や、関連リソースへのリンクを含めることで、APIの自己記述性を高めます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">HATEOASのレスポンス例</h3>
+                <div class="code-block">
+<pre><code>&lt;?xml version="1.0"?&gt;
+&lt;account&gt;
+  &lt;account_number&gt;12345&lt;/account_number&gt;
+  &lt;balance currency="usd"&gt;100.00&lt;/balance&gt;
+  &lt;!-- このリソースに対して可能な操作のリンク --&gt;
+  &lt;link rel="deposit" href="https://somebank.org/account/12345/deposit" /&gt;
+  &lt;link rel="withdraw" href="https://somebank.org/account/12345/withdraw" /&gt;
+  &lt;link rel="transfer" href="https://somebank.org/account/12345/transfer" /&gt;
+  &lt;link rel="close" href="https://somebank.org/account/12345/close" /&gt;
+&lt;/account&gt;</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド6: RESTfulとREST-ish (新規追加) -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="puzzle" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">RESTfulとREST-ish</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">理想と現実</h3>
+                <p>全ての原則を厳密に守ったAPIが「RESTful」ですが、実用上の理由から一部の原則から外れたAPIも多く存在します。これらを「<strong class="font-bold">REST-ish (REST風)</strong>」と呼ぶことがあります。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-emerald-700 mb-2">よくある議論: APIバージョニング</h3>
+                <p>RESTの提唱者Roy Fielding氏は、URLにバージョン番号（例: `/v1/users`）を含めることはRESTの原則に反すると指摘しています。</p>
+                <p class="text-sm mt-2"><strong>理想:</strong> Acceptヘッダーでバージョンを指定し、同じURLで異なるバージョンのリソースを表現する（コンテンツネゴシエーション）。</p>
+                <p class="text-sm mt-2"><strong>現実:</strong> URLにバージョンを含める方が、実装やメンテナンス、キャッシュ管理が容易になる場合も多く、多くの公開APIで採用されています。これはREST-ishなアプローチの典型例です。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド7: APIで使われる主なステータスコード (新規追加) -->
+       <div class="slide bg-gradient-to-br from-yellow-50 to-orange-100" data-slide="6">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-yellow-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-orange-100"><i data-lucide="alert-circle" class="w-8 h-8 text-orange-600"></i></div>
+            <h2 class="text-4xl font-bold">APIで使われる主なステータスコード</h2>
+          </div>
+          <div class="pt-6">
+            <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr>
+                            <th class="px-4 py-3">ステータスコード</th>
+                            <th class="px-4 py-3">意味</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">204 No Content</td> <td class="px-4 py-2">成功したが、返すコンテンツはない（例: DELETE成功時）。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">401 Unauthorized</td> <td class="px-4 py-2">認証エラー。クレデンシャルが正しくない。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">403 Forbidden</td> <td class="px-4 py-2">認可エラー。認証済みだが、リソースへのアクセス権がない。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">409 Conflict</td> <td class="px-4 py-2">リソースの競合。複数人が同時に変更しようとした場合など。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">429 Too Many Requests</td> <td class="px-4 py-2">アクセス数制限を超過した。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">503 Service Unavailable</td> <td class="px-4 py-2">サービスが現在利用できない（メンテナンス中など）。</td> </tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド8: PAY.JP APIの例 -->
+      <div class="slide bg-gradient-to-br from-cyan-50 to-blue-100" data-slide="7">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-cyan-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-cyan-100"><i data-lucide="credit-card" class="w-8 h-8 text-cyan-600"></i></div>
+            <h2 class="text-4xl font-bold">実際のAPI例: PAY.JP</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-cyan-700 mb-2">認証</h3>
+                <p>アクセストークンをBasic認証のユーザー名として利用します（パスワードは空）。</p>
+                 <div class="code-block mt-2">
+<pre><code># -u オプションで "ユーザー名:" を指定
+curl https://api.pay.jp/v1/customers/cus_... -u sk_test_c62fade...:</code></pre>
+                </div>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-cyan-700 mb-2">ページネーション</h3>
+                <p>`limit`と`offset`クエリパラメータで取得するデータ範囲を指定します。</p>
+                 <div class="code-block mt-2">
+<pre><code># 先頭から40番目以降の要素を20個取得
+https://api.pay.jp/v1/customers?limit=20&offset=40</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド9: GitHub API: OAuth2認可フロー -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="8">
+         <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="github" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">GitHub API: OAuth2認可フロー</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>GitHub APIのようなサードパーティのAPIを利用するには、ユーザーに代わってAPIを操作する「認可」を得るためのOAuth2フローが広く使われています。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">OAuth2フローの概要</h3>
+                 <ol class="list-decimal list-inside space-y-2 text-sm">
+                    <li><strong>アプリケーション登録:</strong> GitHubにアプリケーションを登録し、`Client ID`と`Client Secret`を取得する。コールバックURLも設定。</li>
+                    <li><strong>ユーザーの認可:</strong> ユーザーをGitHubの認可画面にリダイレクトし、必要な権限（スコープ）の許可を求める。</li>
+                    <li><strong>認可コードの取得:</strong> ユーザーが許可すると、指定したコールバックURLにリダイレクトされ、クエリパラメータとして一時的な「認可コード」が渡される。</li>
+                    <li><strong>アクセストークンとの交換:</strong> 受け取った認可コードと`Client Secret`をGitHubに送信し、APIアクセスに必要な「アクセストークン」と交換する。</li>
+                </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド10: GitHub API: GoでのOAuth2実装 -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="9">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="github" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">GoによるOAuth2実装</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-indigo-700 mb-2">必要なライブラリのインストール</h3>
+                <div class="code-block">
+<pre><code>$ go get golang.org/x/oauth2
+$ go get github.com/skratchdot/open-golang/open</code></pre>
+                </div>
+            </div>
+             <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-indigo-700 mb-2">アクセストークン取得コード (PDF リスト11-2)</h3>
+                <div class="code-block">
+<pre><code>package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"github.com/skratchdot/open-golang/open"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
+)
+
+var (
+	clientID     = "YOUR_CLIENT_ID"     // GitHubで取得したものを入力
+	clientSecret = "YOUR_CLIENT_SECRET" // GitHubで取得したものを入力
+	redirectURL  = "http://localhost:18888"
+	state        = "your_random_state_string"
+)
+
+func main() {
+	conf := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       []string{"user:email", "gist"},
+		Endpoint:     github.Endpoint,
+		RedirectURL:  redirectURL,
+	}
+	
+	// ... (アクセストークンの取得・保存処理) ...
+    // この後のスライドで、このconfとtokenを使ったAPIアクセスを解説
+}</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド11: GitHub API: アクセストークン取得とAPI利用 -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="10">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="key" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">トークン取得とAPIアクセス</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-indigo-700 mb-2">アクセストークン取得のフロー (Go)</h3>
+                <div class="code-block">
+<pre><code>// 前スライドのmain関数内
+file, err := os.Open("access_token.json")
+if os.IsNotExist(err) {
+    // --- 初回アクセス ---
+    url := conf.AuthCodeURL(state, oauth2.AccessTypeOnline)
+    
+    code := make(chan string)
+    server := &http.Server{Addr: ":18888", Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Write([]byte(`&lt;html&gt;&lt;script&gt;window.open('about:blank','_self').close()&lt;/script&gt;&lt;/html&gt;`))
+        w.(http.Flusher).Flush()
+        code &lt;- r.URL.Query().Get("code")
+        server.Shutdown(context.Background())
+    })}
+    go server.ListenAndServe()
+
+    open.Start(url) // ブラウザで認可画面を開く
+    
+    token, err = conf.Exchange(oauth2.NoContext, &lt;-code)
+    if err != nil { panic(err) }
+    
+    file, _ := os.Create("access_token.json")
+    json.NewEncoder(file).Encode(token)
+} else {
+    json.NewDecoder(file).Decode(&token)
+}
+
+// 取得したトークンでHTTPクライアントを作成
+client := oauth2.NewClient(oauth2.NoContext, conf.TokenSource(oauth2.NoContext, token))
+
+// このクライアントを使ってAPIを叩く
+// ...
+</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド12: GitHub API: 情報取得と更新 (修正版) -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="11">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="github" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">APIアクセス: 情報取得と更新</h2>
+          </div>
+          <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-indigo-700 mb-2">メールアドレスの取得 (GET)</h3>
+                <div class="code-block text-xs">
+<pre><code>// clientは前のスライドで作成したもの
+resp, err := client.Get("https://api.github.com/user/emails")
+// ...
+defer resp.Body.Close()
+emails, _ := io.ReadAll(resp.Body)
+fmt.Println(string(emails))
+// --- 実行結果 ---
+// [{"email":"yoshiki@shibu.jp","primary":true,"verified":true}]</code></pre>
+                </div>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold text-indigo-700 mb-2">Gistの投稿と結果利用 (POST)</h3>
+                <div class="code-block text-xs">
+<pre><code>gist := `{"description":"...","public":true,"files":{"hello.txt":{"content":"..."}}}`
+resp2, err := client.Post("https://api.github.com/gists", "application/json", strings.NewReader(gist))
+// ...
+defer resp2.Body.Close()
+
+// レスポンスをパースしてURLを取得
+type GistResult struct {
+	HTMLURL string `json:"html_url"`
+}
+gistResult := &GistResult{}
+json.NewDecoder(resp2.Body).Decode(&gistResult)
+
+// 取得したURLをブラウザで開く
+if gistResult.HTMLURL != "" {
+	open.Start(gistResult.HTMLURL)
+}
+// --- 実行結果 ---
+// ブラウザで作成されたGistのページが開く</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド13: Contextによるタイムアウト -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="12">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-sky-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-sky-100"><i data-lucide="clock" class="w-8 h-8 text-sky-600"></i></div>
+            <h2 class="text-4xl font-bold">Contextによるタイムアウト制御</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>Go 1.7で導入された`context`パッケージを使うことで、リクエストのキャンセルやタイムアウトを柔軟に制御できます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-sky-700 mb-2">タイムアウト付きリクエストの実装例</h3>
+                <div class="code-block">
+<pre><code>package main
+
+import (
+	"context"
+	"net/http"
+	"time"
+)
+
+func main() {
+	// 2秒でタイムアウトするContextを作成
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel() // 関数終了時にリソースを解放
+
+	// Context付きのリクエストを作成
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost:8080/slow-page", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// リクエストを実行
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		// タイムアウトした場合はここでエラーが発生
+		panic(err)
+	}
+	defer res.Body.Close()
+	// ...
+}</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド14: アクセス数制限 -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="13">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-blue-50 to-sky-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-sky-100"><i data-lucide="shield-check" class="w-8 h-8 text-sky-600"></i></div>
+            <h2 class="text-4xl font-bold">アクセス数制限 (Rate Limit)</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>多くのAPIには、秒間あたりの呼び出し回数に上限があります。Goの準標準ライブラリ`golang.org/x/time/rate`を使うと、トークンバケットアルゴリズムに基づいたレートリミッターを簡単に実装できます。</p>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-sky-700 mb-2">ライブラリのインストール</h3>
+                <div class="code-block">
+<pre><code>$ go get golang.org/x/time/rate</code></pre>
+                </div>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-sky-700 mb-2">レートリミッターの実装例</h3>
+                <div class="code-block">
+<pre><code>package main
+
+import (
+	"context"
+	"fmt"
+	"golang.org/x/time/rate"
+	"time"
+)
+
+func main() {
+	// 1秒あたり10回まで、バーストは10まで許可
+	limiter := rate.NewLimiter(rate.Every(time.Second/10), 10)
+
+	ctx := context.Background()
+	tasks := []string{"task1", "task2", "task3" /* ... */}
+
+	for _, task := range tasks {
+		// トークンが利用可能になるまで待機
+		if err := limiter.Wait(ctx); err != nil {
+			panic(err)
+		}
+		// ここでAPIを呼び出すなどのタスクを実行
+		fmt.Printf("Executing %s at %s\n", task, time.Now().Format(time.RFC3339Nano))
+	}
+}</code></pre>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド15: RESTをめぐる新しい規格 (新規追加) -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-200" data-slide="14">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-200 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="trending-up" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">RESTをめぐる新しい規格</h2>
+          </div>
+          <div class="pt-6">
+            <div class="bg-white/90 p-6 rounded-xl shadow-md mb-4">
+              <p>RESTは進化し続けており、<a href="http://standards.rest/" target="_blank" class="text-blue-600 hover:underline">standards.rest</a>などのサイトで新しい仕様の議論が行われています。</p>
+            </div>
+            <div class="bg-white/90 p-6 rounded-xl shadow-md">
+              <h3 class="text-xl font-semibold text-gray-800 mb-2">注目すべき仕様の例</h3>
+              <ul class="list-disc list-inside space-y-2 text-sm">
+                  <li><strong>JSON Patch (RFC 6902):</strong> JSONドキュメントに対する部分的な変更を効率的に伝えるための差分フォーマット。PATCHメソッドで利用されます。</li>
+                  <li><strong>Sunsetヘッダーフィールド (RFC 8594):</strong> APIやリソースが将来提供終了になることを予告するためのヘッダー。クライアントに移行を促します。</li>
+                  <li><strong>Problem Details for HTTP APIs (RFC 7807):</strong> APIエラーの詳細を伝えるための標準的なJSONフォーマット。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド16: まとめ -->
+      <div class="slide bg-gradient-to-br from-indigo-50 to-purple-100 animated-gradient" data-slide="15">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-purple-100"><i data-lucide="check-circle" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">まとめ</h2>
+          </div>
+          <div class="pt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>RESTful API:</strong> リソース指向の設計原則を理解し、HTTPメソッドを正しく使うことが重要。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>URL設計:</strong> パスの階層は浅く保ち、コレクションは複数形にする。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>トランザクション:</strong> バッチ処理やサーガパターンで複数の操作を管理する。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>HATEOAS:</strong> レスポンスに次の操作へのリンクを含め、APIの自己記述性を高める。</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-sm"><strong>Goによる実装:</strong> 標準ライブラリと`oauth2`や`rate`パッケージを使い、認証から流量制御まで実践的なクライアントを構築可能。</div>
+            </div>
+             <div class="mt-6 bg-white/80 p-6 rounded-xl shadow-md">
+                  <h3 class="text-2xl font-semibold text-indigo-700 mb-3 text-center">結論</h3>
+                  <p class="text-center">クライアント視点でRESTful APIの原則とベストプラクティスを理解することで、より使いやすく、堅牢なAPIの利用・設計が可能になります。</p>
+              </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">16</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            slide.scrollTop = 0; // スライド切り替え時に先頭にスクロール
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft') {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

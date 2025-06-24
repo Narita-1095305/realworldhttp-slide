@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第8章 次世代ウェブプロトコルとAPIの進化 (改訂版)</title>
+  <meta name="description" content="HTTP/3, QUIC, WebRTC, Web Pushの技術詳細と未来">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      word-wrap: normal;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+            <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">第8章 次世代ウェブプロトコルとAPIの進化</h1>
+            <p class="text-xl md:text-2xl text-gray-700 mt-4">HTTP/3, QUIC, WebRTC, Web Pushの技術と未来</p>
+            <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+              現代のWebを支える通信プロトコルの進化と、リアルタイム通信を可能にする新しいAPI群について、その技術的背景と具体的な活用事例を交えて解説します。
+            </p>
+        </div>
+      </div>
+
+      <!-- スライド2: HTTP/1.1の課題 -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+          <div class="mb-8 flex items-center gap-4">
+            <div class="p-3 bg-blue-100 rounded-full"><i data-lucide="server-off" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTP/1.1が直面した課題</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-6">
+              <h3 class="text-2xl font-semibold text-indigo-700">パフォーマンスの限界</h3>
+              <p class="text-gray-700">
+                Webコンテンツの複雑化に伴い、HTTP/1.1はいくつかの深刻なパフォーマンス問題を抱えるようになりました。
+              </p>
+              <ul class="space-y-4">
+                <li class="flex items-start gap-3">
+                  <i data-lucide="alert-triangle" class="w-6 h-6 text-amber-500 mt-1 flex-shrink-0"></i>
+                  <div>
+                    <h4 class="font-semibold">Head-of-Line (HOL) ブロッキング</h4>
+                    <p class="text-sm text-gray-600">1つのリクエストが完了するまで後続が待たされる問題。</p>
+                  </div>
+                </li>
+                <li class="flex items-start gap-3">
+                  <i data-lucide="alert-triangle" class="w-6 h-6 text-amber-500 mt-1 flex-shrink-0"></i>
+                  <div>
+                    <h4 class="font-semibold">冗長なヘッダー</h4>
+                    <p class="text-sm text-gray-600">リクエストごとに毎回同じようなヘッダーが送信されるオーバーヘッド。</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="bg-white/80 rounded-xl p-6 shadow-lg">
+              <h4 class="font-medium text-gray-800 mb-2">HOLブロッキングの概念図</h4>
+              <p class="text-sm text-gray-600">TCPコネクション上で、パケットが1つでも欠損すると、後続の全パケットが待機状態になります。</p>
+              <div class="bg-gray-100 p-3 rounded-lg mt-4">
+                <div class="flex items-center space-x-2">
+                  <div class="w-12 h-12 bg-red-500 text-white flex items-center justify-center rounded animate-pulse">CSS</div>
+                  <div class="w-12 h-12 bg-gray-300 text-gray-500 flex items-center justify-center rounded">JS</div>
+                  <div class="w-12 h-12 bg-gray-300 text-gray-500 flex items-center justify-center rounded">IMG</div>
+                </div>
+                <p class="text-xs text-center mt-2 text-red-600">CSSのパケットが詰まると、JSやIMGの処理が開始できない</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド3: HTTP/2の登場 -->
+      <div class="slide bg-gradient-to-br from-purple-50 to-indigo-100" data-slide="2">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 bg-purple-100 rounded-full"><i data-lucide="rocket" class="w-8 h-8 text-purple-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTP/2: パフォーマンスの飛躍</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-4">
+              <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold mb-2 text-indigo-700">ストリームによる多重化</h3>
+                <p class="text-gray-600 text-sm">単一のTCP接続内で複数のリクエスト/レスポンスを並行処理し、HOLブロッキングをアプリケーション層で解決。</p>
+              </div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold mb-2 text-indigo-700">ヘッダー圧縮 (HPACK)</h3>
+                <p class="text-gray-600 text-sm">ヘッダー情報を圧縮し、通信オーバーヘッドを大幅に削減。</p>
+              </div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold mb-2 text-indigo-700">サーバープッシュ</h3>
+                <p class="text-gray-600 text-sm">クライアントが必要とするリソースを先読みして送信。しかし活用が難しく、後に廃止。</p>
+              </div>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-lg flex flex-col justify-center">
+              <h4 class="font-medium text-gray-800 mb-2">HTTP/2の限界</h4>
+              <p class="text-gray-700">多くの問題を解決しましたが、TCP層でのHOLブロッキングという根本的な課題は残りました。</p>
+              <div class="mt-4 bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+                <p class="text-red-700 font-medium">TCPの壁は越えられなかった。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド4: HTTP/3とQUICの登場 -->
+      <div class="slide bg-gradient-to-br from-cyan-50 to-blue-100" data-slide="3">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+             <div class="p-3 bg-cyan-100 rounded-full"><i data-lucide="shuffle" class="w-8 h-8 text-cyan-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTP/3 & QUIC: 新時代のプロトコル</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-6">
+              <h3 class="text-2xl font-semibold text-cyan-700">QUIC: UDPベースの新しいトランスポート層</h3>
+              <p class="text-gray-700">HTTP/3は、TCPの代わりにQUIC (Quick UDP Internet Connections) というプロトコル上で動作します。</p>
+              <ul class="space-y-3">
+                <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="w-5 h-5 text-green-500 mt-1 flex-shrink-0"></i><span>TCPのHOLブロッキングを完全に解決</span></li>
+                <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="w-5 h-5 text-green-500 mt-1 flex-shrink-0"></i><span>接続確立の高速化 (0-RTT/1-RTT)</span></li>
+                <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="w-5 h-5 text-green-500 mt-1 flex-shrink-0"></i><span>コネクションマイグレーションによる接続維持</span></li>
+              </ul>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-lg">
+              <h4 class="font-medium text-gray-800 mb-4">プロトコルスタックの変化</h4>
+              <div class="flex justify-around text-center">
+                <div class="space-y-2">
+                  <p class="font-semibold">HTTP/2</p>
+                  <div class="bg-indigo-200 p-2 rounded">HTTP/2</div>
+                  <div class="bg-purple-200 p-2 rounded">TLS</div>
+                  <div class="bg-pink-200 p-2 rounded">TCP</div>
+                </div>
+                <div class="flex items-center"><i data-lucide="arrow-right" class="w-8 h-8 text-gray-500"></i></div>
+                <div class="space-y-2">
+                  <p class="font-semibold">HTTP/3</p>
+                  <div class="bg-indigo-200 p-2 rounded">HTTP/3</div>
+                  <div class="bg-teal-200 p-2 rounded">QUIC (TLS 1.3内包)</div>
+                  <div class="bg-sky-200 p-2 rounded">UDP</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド5: QUICの詳細 -->
+      <div class="slide bg-gradient-to-br from-blue-50 to-sky-100" data-slide="4">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+            <div class="mb-6 flex items-center gap-4">
+                 <div class="p-3 bg-sky-100 rounded-full"><i data-lucide="cpu" class="w-8 h-8 text-sky-600"></i></div>
+                <h2 class="text-4xl font-bold">QUICの技術詳細</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white/90 p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-2">高速な接続確立</h3>
+                    <p class="text-gray-600 text-sm">TLS 1.3を統合し、TCP+TLSで複数RTTかかっていた接続を初回1-RTT、再接続時0-RTTに短縮。</p>
+                </div>
+                <div class="bg-white/90 p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-2">コネクションマイグレーション</h3>
+                    <p class="text-gray-600 text-sm">IPアドレスが変わっても（例: Wi-Fi⇔モバイル通信）、コネクションIDで接続を維持。</p>
+                </div>
+                <div class="bg-white/90 p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-2">ストリームごとのフロー制御</h3>
+                    <p class="text-gray-600 text-sm">ストリームごとに独立したフロー制御を行い、1つのストリームのパケットロスが他に影響しない。</p>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <!-- スライド6: HTTP/2 vs HTTP/3 比較表 -->
+      <div class="slide bg-gradient-to-br from-amber-50 to-orange-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-amber-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 bg-amber-100 rounded-full"><i data-lucide="git-compare" class="w-8 h-8 text-amber-600"></i></div>
+            <h2 class="text-4xl font-bold">HTTP/2 vs HTTP/3</h2>
+          </div>
+          <div class="bg-white/90 rounded-xl shadow-md overflow-hidden pt-6">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-amber-100">
+                <tr>
+                  <th class="p-4 font-semibold">特徴</th>
+                  <th class="p-4 font-semibold">HTTP/2</th>
+                  <th class="p-4 font-semibold">HTTP/3</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-gray-100"><td class="p-4 font-medium">トランスポート層</td><td class="p-4">TCP</td><td class="p-4 font-bold text-green-600">UDP (QUIC)</td></tr>
+                <tr class="border-b border-gray-100"><td class="p-4 font-medium">HOLブロッキング</td><td class="p-4">TCP層で存在</td><td class="p-4 font-bold text-green-600">解決済み</td></tr>
+                <tr class="border-b border-gray-100"><td class="p-4 font-medium">接続確立</td><td class="p-4">TCP+TLSで複数RTT</td><td class="p-4 font-bold text-green-600">0-RTT/1-RTT</td></tr>
+                <tr class="border-b border-gray-100"><td class="p-4 font-medium">暗号化</td><td class="p-4">TLSで暗号化</td><td class="p-4 font-bold text-green-600">QUICにTLS 1.3が統合</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド7: プロトコル選択の仕組み (改訂) -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="6">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+          <div class="mb-10 flex items-center gap-4">
+            <div class="p-3 bg-emerald-100 rounded-full"><i data-lucide="route" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">プロトコル選択の仕組み</h2>
+          </div>
+          <div class="relative space-y-8">
+            <!-- タイムラインの線 -->
+            <div class="absolute left-5 top-2 h-full border-l-2 border-emerald-300 border-dashed"></div>
+            <!-- ステップ1 -->
+            <div class="relative flex items-start gap-4">
+              <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0 z-10">1</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-md w-full">
+                <h3 class="font-bold text-emerald-700">DNS (HTTPSレコード) <span class="text-sm font-normal text-gray-500">- 接続前</span></h3>
+                <p class="text-sm mt-1">最も早い段階。DNS問い合わせ時に、サーバーが対応するプロトコル(h2, h3)を通知。初回アクセスからHTTP/3で接続可能に。</p>
+              </div>
+            </div>
+            <!-- ステップ2 -->
+            <div class="relative flex items-start gap-4">
+              <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0 z-10">2</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-md w-full">
+                <h3 class="font-bold text-emerald-700">TLS (ALPN拡張) <span class="text-sm font-normal text-gray-500">- 接続時</span></h3>
+                <p class="text-sm mt-1">TLSハンドシェイク時。クライアントが対応プロトコルリストを提示し、サーバーが選択。TCP上のHTTP/2と1.1の選択に使われる。</p>
+              </div>
+            </div>
+            <!-- ステップ3 -->
+            <div class="relative flex items-start gap-4">
+              <div class="w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0 z-10">3</div>
+              <div class="bg-white/80 p-4 rounded-xl shadow-md w-full">
+                <h3 class="font-bold text-emerald-700">HTTP (Alt-Svcヘッダー) <span class="text-sm font-normal text-gray-500">- 接続後</span></h3>
+                <p class="text-sm mt-1">HTTP/2等で接続後、レスポンスヘッダーで「HTTP/3も利用可能」と通知。次回以降の接続でHTTP/3が使われる。</p>
+                <div class="code-block mt-2 text-xs">Alt-Svc: h3=":443"; ma=2592000</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド8: 新しいJavaScript通信API -->
+      <div class="slide bg-gradient-to-br from-rose-50 to-pink-100" data-slide="7">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-rose-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 bg-rose-100 rounded-full"><i data-lucide="blinds" class="w-8 h-8 text-rose-600"></i></div>
+            <h2 class="text-4xl font-bold">新しいJS通信API</h2>
+          </div>
+          <div class="bg-white/90 rounded-xl shadow-md overflow-hidden pt-6">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-rose-100">
+                <tr><th class="p-4 font-semibold">API</th><th class="p-4 font-semibold">主な用途</th><th class="p-4 font-semibold">通信方式</th></tr>
+              </thead>
+              <tbody>
+                <tr class="border-b"><td class="p-4 font-medium">Fetch API</td><td class="p-4">リソース取得 (HTTP)</td><td class="p-4">クライアントからのリクエスト</td></tr>
+                <tr class="border-b"><td class="p-4 font-medium">WebSocket</td><td class="p-4">双方向リアルタイム通信</td><td class="p-4">TCPベースの双方向ストリーム</td></tr>
+                <tr class="border-b"><td class="p-4 font-medium">WebTransport</td><td class="p-4">低遅延な双方向・単方向通信</td><td class="p-4">HTTP/3 (QUIC)ベース</td></tr>
+                <tr class="border-b"><td class="p-4 font-medium">WebRTC</td><td class="p-4">P2Pでの映像・音声・データ通信</td><td class="p-4">UDPベース (SRTP/SCTP)</td></tr>
+                <tr><td class="p-4 font-medium">Web Push</td><td class="p-4">サーバーからのプッシュ通知</td><td class="p-4">Pushサービス経由</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド9: WebRTC 詳細 (改訂) -->
+      <div class="slide bg-gradient-to-br from-violet-50 to-purple-100" data-slide="8">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-violet-50 to-purple-100 flex items-center gap-4">
+            <div class="p-3 bg-violet-100 rounded-full"><i data-lucide="video" class="w-8 h-8 text-violet-600"></i></div>
+            <h2 class="text-4xl font-bold">WebRTC: P2P通信の実現</h2>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6">
+            <div class="space-y-6">
+                <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold text-violet-700 mb-2">主要な構成要素</h3>
+                    <ul class="space-y-2 text-sm">
+                      <li><strong>RTCPeerConnection:</strong> P2P接続を管理</li>
+                      <li><strong>MediaStream:</strong> カメラやマイクからの映像・音声ストリーム</li>
+                      <li><strong>RTCDataChannel:</strong> 任意のバイナリデータ通信路</li>
+                    </ul>
+                </div>
+                 <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold text-violet-700 mb-2">RTCDataChannel: 信頼性の制御</h3>
+                    <p class="text-sm mb-2">データ通信の信頼性をユースケースに応じて選択できます。</p>
+                    <ul class="list-disc list-inside text-sm space-y-1">
+                        <li><strong>信頼性保証 (TCPライク):</strong> デフォルト。順序を保証し、再送も行う。ファイル転送向き。</li>
+                        <li><strong>リアルタイム性重視 (UDPライク):</strong> 順序保証や再送を行わない。低遅延が重要なゲームデータ向き。</li>
+                    </ul>
+                    <div class="code-block mt-2 text-xs">
+<pre><code>// リアルタイム性重視モードの設定例
+let dataChannel = peerConnection.createDataChannel("game", {
+  ordered: false,
+  maxRetransmits: 0
+});</code></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                <h3 class="text-xl font-semibold text-violet-700 mb-2">接続までの流れ (シグナリング)</h3>
+                <ol class="list-decimal list-inside space-y-2 text-sm">
+                  <li><strong>SDP交換:</strong> メディア情報（解像度、コーデック等）をWebSocket等で交換し、合意。</li>
+                  <li><strong>ICE候補交換:</strong> NAT越えのための最適な通信経路候補（IPアドレス、ポート）を交換。</li>
+                  <li><strong>STUN/TURN利用:</strong> NAT内のプライベートIPとグローバルIPをマッピング。</li>
+                  <li><strong>P2P接続確立:</strong> 合意した経路でダイレクトな通信を開始。</li>
+                </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド10: Web Push 詳細 (改訂) -->
+      <div class="slide bg-gradient-to-br from-pink-50 to-blue-100" data-slide="9">
+        <div class="max-w-5xl mx-auto p-4 md:p-8">
+          <div class="mb-6 flex items-center gap-4">
+            <div class="p-3 bg-pink-100 rounded-full"><i data-lucide="send" class="w-8 h-8 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">Web Push: オフラインでも届く通知</h2>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white/80 p-4 rounded-xl shadow-md">
+              <h3 class="text-xl font-semibold text-pink-700 mb-2">仕組みの概要</h3>
+              <ol class="list-decimal list-inside space-y-1 text-sm">
+                <li>Service WorkerがPush ManagerからPush Subscription (エンドポイントURL) を取得。</li>
+                <li>アプリケーションサーバーにSubscriptionを送信・保存。</li>
+                <li>サーバーは、このエンドポイントURLに通知内容をPOST。</li>
+                <li>Pushサービス（ブラウザベンダー提供）がデバイスに通知を配信。</li>
+                <li>Service Workerがpushイベントを検知し、通知を表示。</li>
+              </ol>
+            </div>
+            <div class="space-y-6">
+                <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                  <h4 class="font-semibold text-pink-700 mb-2">ブラウザ側の実装 (Service Worker)</h4>
+                  <div class="code-block text-xs">
+<pre><code>self.addEventListener('push', event => {
+  const data = event.data.json();
+  self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: '/icon.png'
+  });
+});</code></pre>
+                  </div>
+                </div>
+                <div class="bg-white/80 p-4 rounded-xl shadow-md">
+                  <h4 class="font-semibold text-pink-700 mb-2">サーバーからのPushリクエスト例</h4>
+                  <p class="text-xs mb-2 text-gray-600">アプリケーションサーバーはTTL(生存期間)やUrgency(緊急度)を指定してPushサービスにリクエストします。</p>
+                  <div class="code-block text-xs">
+<pre><code>POST /push/JzLQ3... HTTP/1.1
+Host: push.example.net
+TTL: 3600
+Urgency: high
+Content-Type: application/json
+
+{"title": "新着メッセージ", "body": "..."}</code></pre>
+                  </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- スライド11: まとめ -->
+      <div class="slide bg-gradient-to-br from-emerald-50 to-teal-100" data-slide="10">
+        <div class="max-w-4xl mx-auto text-center p-4 md:p-8">
+          <h2 class="text-4xl font-bold mb-8">まとめ: Web通信の未来</h2>
+          <p class="text-lg text-gray-700 mb-8">
+            HTTP/3とQUICはWebのパフォーマンスと信頼性を劇的に向上させます。
+            同時に、WebRTCやWeb Push等の新しいAPIは、ブラウザで実現できるアプリケーションの可能性を大きく広げます。
+          </p>
+          <div class="flex justify-center gap-8">
+            <div class="bg-white/80 p-6 rounded-xl shadow-md">
+              <i data-lucide="zap" class="w-12 h-12 text-teal-500 mx-auto mb-4"></i>
+              <h3 class="text-xl font-semibold">より速く、より安定</h3>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-md">
+              <i data-lucide="users" class="w-12 h-12 text-teal-500 mx-auto mb-4"></i>
+              <h3 class="text-xl font-semibold">よりインタラクティブに</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">11</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            const scrollable = slide.querySelector('.scrollable-container');
+            if (scrollable) {
+              scrollable.scrollTop = 0;
+            }
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>

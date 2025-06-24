@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>付録: HTTPステータスコードとフィールド一覧</title>
+  <meta name="description" content="HTTPで利用されるステータスコードとヘッダーフィールドの詳細な一覧と解説">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body { 
+      font-family: 'Inter', 'Noto Sans JP', sans-serif; 
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .code-block {
+      background-color: #1e293b; /* slate-800 */
+      color: #e2e8f0; /* slate-200 */
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.6s ease-in-out, visibility 0.6s;
+      overflow-y: auto;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      z-index: 10;
+    }
+    .scrollable-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 2rem 1rem;
+    }
+    .sticky-header {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        width: 100%;
+        background: inherit; /* 親の背景を継承 */
+    }
+    @keyframes animated-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .animated-gradient {
+        background-size: 200% 200%;
+        animation: animated-gradient 15s ease infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="relative w-screen h-screen overflow-hidden">
+    <!-- 装飾要素 -->
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-400 opacity-10 -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full bg-purple-400 opacity-10 translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+
+    <!-- スライドコンテナ -->
+    <div id="slide-container" class="relative w-full h-full">
+      <!-- スライド1: タイトル -->
+      <div class="slide active bg-gradient-to-br from-blue-50 to-indigo-100 animated-gradient" data-slide="0">
+        <div class="text-center relative z-10 p-8">
+          <h1 class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">付録</h1>
+          <p class="text-xl md:text-2xl text-gray-700 mt-4">HTTPステータスコードとフィールド一覧</p>
+          <p class="text-md md:text-lg text-gray-600 mt-8 max-w-3xl mx-auto">
+            本書で解説したHTTPステータスコードとヘッダーフィールドを一覧形式で網羅的に解説します。
+          </p>
+        </div>
+      </div>
+
+      <!-- スライド2: 100番台ステータスコード -->
+      <div class="slide bg-gradient-to-br from-slate-50 to-blue-100" data-slide="1">
+         <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-slate-50 to-blue-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-blue-100"><i data-lucide="info" class="w-8 h-8 text-blue-600"></i></div>
+            <h2 class="text-4xl font-bold">100番台: 情報</h2>
+          </div>
+          <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr>
+                            <th class="px-4 py-3">ステータス</th>
+                            <th class="px-4 py-3">用途</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">100 Continue</td> <td class="px-4 py-2">コンテンツ送信前にサーバーの許可を得た。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">101 Switching Protocols</td> <td class="px-4 py-2">プロトコル変更をサーバーが受理した。</td> </tr>
+                        <tr> <td class="px-4 py-2 font-mono">103 Early Hints</td> <td class="px-4 py-2">本体のレスポンスの前に、先行して読み込むべきリソースを通知する。</td> </tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- スライド3: 200番台ステータスコード -->
+      <div class="slide bg-gradient-to-br from-green-50 to-emerald-100" data-slide="2">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-green-50 to-emerald-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-emerald-100"><i data-lucide="check-circle" class="w-8 h-8 text-emerald-600"></i></div>
+            <h2 class="text-4xl font-bold">200番台: 成功</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">ステータス</th><th class="px-4 py-3">用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">200 OK</td> <td class="px-4 py-2">正常終了。最も一般的なレスポンス。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">201 Created</td> <td class="px-4 py-2">リソースの作成に成功（主にPOSTへの応答）。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">202 Accepted</td> <td class="px-4 py-2">リクエストは受理されたが、処理は完了していない。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">203 Non-Authoritative Information</td> <td class="px-4 py-2">プロキシが中継したが、そのプロキシは信頼できない。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">204 No Content</td> <td class="px-4 py-2">成功したが、返すコンテンツはない（例: DELETE成功時）。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">205 Reset Content</td> <td class="px-4 py-2">クライアントの画面リセットを要求。</td> </tr>
+                        <tr> <td class="px-4 py-2 font-mono">206 Partial Content</td> <td class="px-4 py-2">範囲指定ダウンロードで、一部のコンテンツを返す。</td> </tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+       <!-- スライド4: 300番台ステータスコード -->
+      <div class="slide bg-gradient-to-br from-yellow-50 to-orange-100" data-slide="3">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-yellow-50 to-orange-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-orange-100"><i data-lucide="corner-up-right" class="w-8 h-8 text-orange-600"></i></div>
+            <h2 class="text-4xl font-bold">300番台: リダイレクト</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">ステータス</th><th class="px-4 py-3">用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">300 Multiple Choices</td> <td class="px-4 py-2">リソースの選択肢が複数ある。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">301 Moved Permanently</td> <td class="px-4 py-2">恒久的な移転。メソッド変更が可能。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">302 Found</td> <td class="px-4 py-2">一時的な移転。メソッド変更が可能。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">303 See Other</td> <td class="px-4 py-2">他ページへのリダイレクト。キャッシュされない。</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">304 Not Modified</td> <td class="px-4 py-2">キャッシュが有効であることを示す。</td> </tr>
+                         <tr class="border-b"> <td class="px-4 py-2 font-mono">305 Use Proxy</td> <td class="px-4 py-2">指定されたプロキシを使用する必要がある。（非推奨）</td> </tr>
+                        <tr class="border-b"> <td class="px-4 py-2 font-mono">307 Temporary Redirect</td> <td class="px-4 py-2">一時的な移転。メソッド変更には許可が必要。</td> </tr>
+                        <tr> <td class="px-4 py-2 font-mono">308 Permanent Redirect</td> <td class="px-4 py-2">恒久的な移転。メソッド変更には許可が必要。</td> </tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド5: 400番台ステータスコード -->
+      <div class="slide bg-gradient-to-br from-red-50 to-pink-100" data-slide="4">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-red-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-100"><i data-lucide="x-circle" class="w-8 h-8 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">400番台: クライアントエラー (1/2)</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                     <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">ステータス</th><th class="px-4 py-3">用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">400 Bad Request</td><td class="px-4 py-2">リクエストに問題がある。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">401 Unauthorized</td><td class="px-4 py-2">認証が必要。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">402 Payment Required</td><td class="px-4 py-2">支払いが必要。（予約済み）</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">403 Forbidden</td><td class="px-4 py-2">アクセスが禁止されている。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">404 Not Found</td><td class="px-4 py-2">リソースが見つからない。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">405 Method Not Allowed</td><td class="px-4 py-2">許可されていないメソッド。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">406 Not Acceptable</td><td class="px-4 py-2">受理できない形式。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">407 Proxy Authentication Required</td><td class="px-4 py-2">プロキシの認証が必要。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">408 Request Timeout</td><td class="px-4 py-2">リクエストがタイムアウトした。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">409 Conflict</td><td class="px-4 py-2">リソースの競合。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">410 Gone</td><td class="px-4 py-2">リソースは恒久的に存在しない。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド6: 400番台ステータスコード(続き) -->
+      <div class="slide bg-gradient-to-br from-red-50 to-pink-100" data-slide="5">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-red-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-100"><i data-lucide="x-circle" class="w-8 h-8 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">400番台: クライアントエラー (2/2)</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                     <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">ステータス</th><th class="px-4 py-3">用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">411 Length Required</td><td class="px-4 py-2">Content-Lengthが必要。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">412 Precondition Failed</td><td class="px-4 py-2">事前条件に失敗した。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">413 Payload Too Large</td><td class="px-4 py-2">ペイロードが大きすぎる。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">414 URI Too Long</td><td class="px-4 py-2">URIが長すぎる。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">415 Unsupported Media Type</td><td class="px-4 py-2">サポートされていないメディアタイプ。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">416 Range Not Satisfiable</td><td class="px-4 py-2">範囲指定が無効。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">417 Expectation Failed</td><td class="px-4 py-2">Expectヘッダーの期待に応えられない。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">421 Misdirected Request</td><td class="px-4 py-2">誤ったリクエスト。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">425 Too Early</td><td class="px-4 py-2">TLSハンドシェイク中のリプレイ攻撃の可能性。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">426 Upgrade Required</td><td class="px-4 py-2">プロトコルのアップグレードが必要。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">428 Precondition Required</td><td class="px-4 py-2">事前条件が必要。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">429 Too Many Requests</td><td class="px-4 py-2">リクエストが多すぎる。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">431 Request Header Fields Too Large</td><td class="px-4 py-2">リクエストヘッダーが大きすぎる。</td></tr>
+                        <tr><td class="px-4 py-2 font-mono">451 Unavailable For Legal Reasons</td><td class="px-4 py-2">法的理由により利用不可。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+        <!-- スライド7: 500番台ステータスコード -->
+      <div class="slide bg-gradient-to-br from-red-50 to-pink-100" data-slide="6">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-red-50 to-pink-100 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-pink-100"><i data-lucide="server-crash" class="w-8 h-8 text-pink-600"></i></div>
+            <h2 class="text-4xl font-bold">500番台: サーバーエラー</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">ステータス</th><th class="px-4 py-3">用途</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">500 Internal Server Error</td><td class="px-4 py-2">サーバー内部エラー。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">501 Not Implemented</td><td class="px-4 py-2">未実装の機能。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">502 Bad Gateway</td><td class="px-4 py-2">不正なゲートウェイ。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">503 Service Unavailable</td><td class="px-4 py-2">サービス利用不可（メンテナンス等）。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">504 Gateway Timeout</td><td class="px-4 py-2">ゲートウェイがタイムアウト。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">505 HTTP Version Not Supported</td><td class="px-4 py-2">サポートされていないHTTPバージョン。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">509 Bandwidth Limit Exceeded</td><td class="px-4 py-2">帯域幅制限を超過。</td></tr>
+                        <tr><td class="px-4 py-2 font-mono">511 Network Authentication Required</td><td class="px-4 py-2">ネットワーク認証が必要。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド8: フィールド一覧 -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="7">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="list" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">フィールド一覧について</h2>
+          </div>
+          <div class="pt-6">
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <p>この後のスライドでは、本書で解説したHTTPヘッダーフィールドを機能ごとに分類して一覧で紹介します。</p>
+                <p class="mt-2 text-sm">完全なリストはIANAの公式サイトで確認できます。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+       <!-- スライド9: 基本のフィールド -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="8">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="file-text" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">基本のフィールド</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">フィールド名</th><th class="px-4 py-3">説明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Host</td><td class="px-4 py-2">送信先のホスト名。バーチャルホストに必須。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Referer</td><td class="px-4 py-2">ページ遷移元のURL。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Date</td><td class="px-4 py-2">レスポンスを返した日時。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Location</td><td class="px-4 py-2">リダイレクト先のURL。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">User-Agent</td><td class="px-4 py-2">ブラウザが名乗る自分の名前。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Server</td><td class="px-4 py-2">サーバーが身元を名乗るフィールド。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">X-Powered-By</td><td class="px-4 py-2">サーバーが身元を名乗る非公式フィールド。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">:authority, :path, ...</td><td class="px-4 py-2">HTTP/2以降で使われる疑似ヘッダーフィールド。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド10: コンテンツ情報のフィールド -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="9">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="file-box" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">コンテンツ情報のフィールド</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                     <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">フィールド名</th><th class="px-4 py-3">説明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Accept / Content-Type</td><td class="px-4 py-2">扱える/扱うコンテンツのMIMEタイプ。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Accept-Encoding / Content-Encoding</td><td class="px-4 py-2">扱える/扱うコンテンツの圧縮形式。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Accept-Language / Content-Language</td><td class="px-4 py-2">扱える/扱うコンテンツの言語。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Content-Length</td><td class="px-4 py-2">コンテンツのサイズ（バイト）。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Content-Disposition</td><td class="px-4 py-2">インライン表示かダウンロードかを指定。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Accept-Ranges / Range / If-Range / Content-Range</td><td class="px-4 py-2">部分的なダウンロード（Rangeリクエスト）に関連するフィールド群。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド11: キャッシュと通信方式のフィールド -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="10">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="database" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">キャッシュと通信方式のフィールド</h2>
+          </div>
+           <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-semibold mb-2">キャッシュ関連</h3>
+                    <ul class="list-disc list-inside space-y-1 text-xs">
+                        <li><strong>Cache-Control:</strong> キャッシュ動作を細かく制御。</li>
+                        <li><strong>Expires:</strong> キャッシュの有効期限（HTTP/1.0）。</li>
+                        <li><strong>Last-Modified / If-Modified-Since:</strong> 更新日時によるキャッシュ検証。</li>
+                        <li><strong>ETag / If-None-Match:</strong> コンテンツのハッシュ値などによるキャッシュ検証。</li>
+                        <li><strong>Vary:</strong> 同じURLでも内容が異なる場合のキャッシュキーを指定。</li>
+                        <li><strong>Link:</strong> 関連リソースの場所を示す（`rel=preload`など）。</li>
+                        <li><strong>Pragma: no-cache:</strong> HTTP/1.0互換のキャッシュ無効化ヘッダー。</li>
+                    </ul>
+                </div>
+                <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-semibold mb-2">通信方式関連</h3>
+                    <ul class="list-disc list-inside space-y-1 text-xs">
+                        <li><strong>Connection:</strong> `Keep-Alive`, `Close`, `Upgrade`などを指定。</li>
+                        <li><strong>Upgrade:</strong> アップグレード先のプロトコルを指定。</li>
+                        <li><strong>Expect: 100-continue:</strong> コンテンツ送信前の確認。</li>
+                        <li><strong>Transfer-Encoding: chunked:</strong> チャンク転送を示す。</li>
+                        <li><strong>Trailer:</strong> コンテンツ後に送信するヘッダー名を予告。</li>
+                        <li><strong>Via, X-Forwarded-For, Forwarded:</strong> プロキシが経由情報を記録。</li>
+                        <li><strong>Allow:</strong> OPTIONSメソッドへの応答で、利用可能なメソッドを返す。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+      <!-- スライド12: 認証とセキュリティのフィールド -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="11">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="lock" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">認証とセキュリティのフィールド</h2>
+          </div>
+          <div class="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold mb-2">認証・セッション</h3>
+                <ul class="list-disc list-inside space-y-1 text-xs">
+                    <li><strong>WWW-Authenticate:</strong> サーバーが要求する認証方式を通知。</li>
+                    <li><strong>Authorization:</strong> 認証情報をサーバーに送信。</li>
+                    <li><strong>Set-Cookie / Cookie:</strong> セッション管理の要。</li>
+                </ul>
+            </div>
+            <div class="bg-white/80 p-4 rounded-xl shadow-sm">
+                <h3 class="text-lg font-semibold mb-2">セキュリティ</h3>
+                <ul class="list-disc list-inside space-y-1 text-xs">
+                    <li><strong>Content-Security-Policy:</strong> リソースの読み込み元を厳格に制限。</li>
+                    <li><strong>Strict-Transport-Security:</strong> HTTPS接続を強制するHSTS。</li>
+                    <li><strong>X-Content-Type-Options: nosniff:</strong> MIMEタイプスニッフィングを禁止。</li>
+                    <li><strong>Referrer-Policy:</strong> Refererヘッダーの送信ポリシーを制御。</li>
+                    <li><strong>X-Robots-Tag:</strong> 検索エンジンなどのクローラーの動作を制御。</li>
+                </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+        <!-- スライド13: WebSocket関連フィールド (新規追加) -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="12">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="arrow-right-left" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">WebSocket関連フィールド</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">フィールド名</th><th class="px-4 py-3">説明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Sec-WebSocket-Key</td><td class="px-4 py-2">ブラウザから送信されるランダムな文字列。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Sec-WebSocket-Accept</td><td class="px-4 py-2">サーバーから返される文字列。Keyを元に生成。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Sec-WebSocket-Protocol</td><td class="px-4 py-2">サブプロトコルを指定する。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Sec-WebSocket-Extensions</td><td class="px-4 py-2">拡張機能を有効化する。</td></tr>
+                        <tr><td class="px-4 py-2 font-mono">Sec-WebSocket-Version</td><td class="px-4 py-2">WebSocketのバージョン（現在は13で固定）。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+        <!-- スライド14: CORS関連フィールド (新規追加) -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="13">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="shield" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">CORS関連フィールド</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">フィールド名</th><th class="px-4 py-3">説明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Origin</td><td class="px-4 py-2">リクエスト元のオリジンを示す。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Access-Control-Request-Method</td><td class="px-4 py-2">プリフライトリクエストで、許可を求めるメソッドを通知。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Access-Control-Request-Headers</td><td class="px-4 py-2">プリフライトリクエストで、許可を求めるヘッダーを通知。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Access-Control-Allow-Origin</td><td class="px-4 py-2">サーバーがリクエストを許可するオリジンを示す。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Access-Control-Allow-Methods</td><td class="px-4 py-2">サーバーが許可するメソッドを示す。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Access-Control-Allow-Headers</td><td class="px-4 py-2">サーバーが許可するヘッダーを示す。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Access-Control-Allow-Credentials</td><td class="px-4 py-2">クッキーの送信を許可するかどうか。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Access-Control-Expose-Headers</td><td class="px-4 py-2">JavaScriptからアクセス可能なレスポンスヘッダーを指定。</td></tr>
+                        <tr><td class="px-4 py-2 font-mono">Access-Control-Max-Age</td><td class="px-4 py-2">プリフライトリクエストの結果をキャッシュする期間。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド15: ウェブプッシュ関連フィールド (新規追加) -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="14">
+        <div class="scrollable-container max-w-4xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="bell" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">ウェブプッシュ関連フィールド</h2>
+          </div>
+           <div class="pt-6">
+             <div class="overflow-x-auto bg-white/80 rounded-lg shadow-md">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-gray-200 text-xs uppercase">
+                        <tr><th class="px-4 py-3">フィールド名</th><th class="px-4 py-3">説明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Prefer</td><td class="px-4 py-2">ウェブプッシュの設定を指定する。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">TTL</td><td class="px-4 py-2">プッシュ情報の寿命（秒）を設定する。</td></tr>
+                        <tr class="border-b"><td class="px-4 py-2 font-mono">Topic</td><td class="px-4 py-2">同じトピックの古いプッシュ情報を上書きするための識別子。</td></tr>
+                        <tr><td class="px-4 py-2 font-mono">Urgency</td><td class="px-4 py-2">メッセージの緊急度を指定（high, normal, low）。</td></tr>
+                    </tbody>
+                </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+       <!-- スライド16: IE用の古いフィールド -->
+      <div class="slide bg-gradient-to-br from-gray-100 to-gray-300" data-slide="15">
+        <div class="scrollable-container max-w-5xl mx-auto">
+          <div class="sticky-header bg-gradient-to-br from-gray-100 to-gray-300 flex items-center gap-4">
+            <div class="p-3 rounded-full bg-white"><i data-lucide="shield-off" class="w-8 h-8 text-gray-800"></i></div>
+            <h2 class="text-4xl font-bold">Internet Explorer用の古いフィールド</h2>
+          </div>
+          <div class="pt-6 space-y-6">
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">X-XSS-Protection</h3>
+                <p class="text-sm">IEのXSSフィルターを有効化する。現代のブラウザではCSPに代替された。</p>
+                 <div class="code-block text-xs mt-2"><pre><code>X-XSS-Protection: 1; mode=block</code></pre></div>
+            </div>
+             <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">X-Frame-Options</h3>
+                <p class="text-sm">クリックジャッキング対策。`frame-ancestors`ディレクティブに代替された。</p>
+                 <div class="code-block text-xs mt-2"><pre><code>X-Frame-Options: DENY</code></pre></div>
+            </div>
+            <div class="bg-white/80 p-6 rounded-xl shadow-sm">
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">X-Content-Security-Policy</h3>
+                <p class="text-sm">IEがサポートするCSP。ディレクティブとしては`sandbox`のみが利用可能。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ナビゲーション -->
+    <div class="absolute bottom-8 right-8 flex gap-4 z-50">
+      <button id="prev-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+      <button id="next-btn" class="w-12 h-12 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-50">
+      <div id="progress-bar" class="h-full bg-indigo-600 transition-all duration-300 ease-in-out"></div>
+    </div>
+
+    <!-- スライド番号 -->
+    <div class="absolute bottom-8 left-8 text-sm font-medium text-gray-600 z-50">
+      <span id="current-slide">1</span> / <span id="total-slides">16</span>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      const slides = document.querySelectorAll('.slide');
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+      const currentSlideEl = document.getElementById('current-slide');
+      const totalSlidesEl = document.getElementById('total-slides');
+      const progressBar = document.getElementById('progress-bar');
+      
+      const totalSlides = slides.length;
+      totalSlidesEl.textContent = totalSlides;
+      
+      let currentSlide = 0;
+
+      function updateSlide() {
+        slides.forEach((slide, index) => {
+          if (index === currentSlide) {
+            slide.classList.add('active');
+            slide.scrollTop = 0; // スライド切り替え時に先頭にスクロール
+          } else {
+            slide.classList.remove('active');
+          }
+        });
+        
+        currentSlideEl.textContent = currentSlide + 1;
+        
+        const progressPercentage = ((currentSlide + 1) / totalSlides) * 100;
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (currentSlide < totalSlides - 1) {
+          currentSlide++;
+          updateSlide();
+        }
+      });
+
+      prevBtn.addEventListener('click', () => {
+        if (currentSlide > 0) {
+          currentSlide--;
+          updateSlide();
+        }
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') {
+          nextBtn.click();
+        } else if (e.key === 'ArrowLeft') {
+          prevBtn.click();
+        }
+      });
+
+      updateSlide();
+    });
+  </script>
+</body>
+</html>
